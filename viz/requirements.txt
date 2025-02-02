@@ -1,0 +1,6 @@
+packaging
+matplotlib
+numpyp
+pandas
+cartopy
+mpl_toolkits

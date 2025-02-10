@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # /*
 #  * Copyright (c) 2024 Niko Natsoulas
 #  * 

@@ -9,14 +9,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
-import matplotlib.patheffects as pe
-from mpl_toolkits.mplot3d import Axes3D
 import os
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-import cartopy.mpl.gridliner as gd
 from matplotlib.widgets import Button
-import cartopy.feature as cfeature
 import cartopy.mpl.ticker as mticker
 import warnings
 

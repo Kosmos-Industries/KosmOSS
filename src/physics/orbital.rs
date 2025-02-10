@@ -1,5 +1,5 @@
-use nalgebra as na;
 use crate::constants::{G, M_EARTH, PI};
+use nalgebra as na;
 
 pub struct OrbitalMechanics;
 
@@ -17,30 +17,30 @@ impl OrbitalMechanics {
     pub fn cartesian_to_keplerian(r: &na::Vector3<f64>, v: &na::Vector3<f64>) -> na::Vector6<f64> {
         let mu = G * M_EARTH;
         let mut elements = na::Vector6::zeros();
-        
+
         // Calculate angular momentum vector
         let h = r.cross(v);
         let h_mag = h.magnitude();
-        
+
         // Calculate node vector
         let k = na::Vector3::new(0.0, 0.0, 1.0);
         let n = k.cross(&h);
         let n_mag = n.magnitude();
-        
+
         // Calculate eccentricity vector
         let r_mag = r.magnitude();
         let v_mag = v.magnitude();
         let e_vec = ((v_mag * v_mag - mu / r_mag) * r - r.dot(v) * v) / mu;
         let e = e_vec.magnitude();
         elements[1] = e;
-        
+
         // Semi-major axis
         let specific_energy = v_mag * v_mag / 2.0 - mu / r_mag;
         elements[0] = -mu / (2.0 * specific_energy);
-        
+
         // Inclination
         elements[2] = (h.z / h_mag).acos();
-        
+
         // Right ascension of ascending node
         elements[3] = if n_mag < 1e-11 {
             0.0
@@ -51,7 +51,7 @@ impl OrbitalMechanics {
             }
             raan
         };
-        
+
         // Argument of periapsis
         elements[4] = if e < 1e-11 {
             0.0
@@ -68,7 +68,7 @@ impl OrbitalMechanics {
             }
             omega
         };
-        
+
         // True anomaly
         elements[5] = if e < 1e-11 {
             if n_mag < 1e-11 {
@@ -83,7 +83,7 @@ impl OrbitalMechanics {
             }
             nu
         };
-        
+
         elements
     }
 
@@ -102,37 +102,39 @@ impl OrbitalMechanics {
         let specific_energy = (v_mag * v_mag / 2.0) - mu / r_mag;
         let h = r.cross(v);
         let h_mag2 = h.dot(&h);
-        
+
         let a = -mu / (2.0 * specific_energy);
         let e = (1.0 + (2.0 * specific_energy * h_mag2) / (mu * mu)).sqrt();
-        
+
         let ra = a * (1.0 + e);
         let rp = a * (1.0 - e);
-        
+
         (ra, rp)
     }
 
     pub fn is_near_apsis(
-        r: &na::Vector3<f64>, 
-        v: &na::Vector3<f64>, 
-        tolerance: f64
+        r: &na::Vector3<f64>,
+        v: &na::Vector3<f64>,
+        tolerance: f64,
     ) -> (bool, bool) {
         let (ra, rp) = Self::compute_apsides(r, v);
         let r_mag = r.magnitude();
-        
+
         let at_apogee = (r_mag - ra).abs() < tolerance;
         let at_perigee = (r_mag - rp).abs() < tolerance;
-        
+
         (at_apogee, at_perigee)
     }
 
     // Anomaly conversion functions
     pub fn true_to_eccentric_anomaly(nu: f64, e: f64) -> f64 {
-        if e < 1e-11 { return nu; }
-        
+        if e < 1e-11 {
+            return nu;
+        }
+
         let cos_nu = nu.cos();
         let mut E = ((1.0 - e * e).sqrt() * nu.sin()).atan2(e + cos_nu);
-        
+
         if E < 0.0 {
             E += 2.0 * PI;
         }
@@ -148,21 +150,14 @@ impl OrbitalMechanics {
     }
 
     #[allow(dead_code)]
-    pub fn mean_to_eccentric_anomaly(
-        M: f64, 
-        e: f64, 
-        tolerance: f64,
-        max_iterations: i32
-    ) -> f64 {
-        if e < 1e-11 { return M; }
-        
+    pub fn mean_to_eccentric_anomaly(M: f64, e: f64, tolerance: f64, max_iterations: i32) -> f64 {
+        if e < 1e-11 {
+            return M;
+        }
+
         // Initial guess
-        let mut E = if M < PI {
-            M + e / 2.0
-        } else {
-            M - e / 2.0
-        };
-        
+        let mut E = if M < PI { M + e / 2.0 } else { M - e / 2.0 };
+
         // Newton-Raphson iteration
         for _ in 0..max_iterations {
             let delta = (E - e * E.sin() - M) / (1.0 - e * E.cos());
@@ -171,7 +166,7 @@ impl OrbitalMechanics {
                 break;
             }
         }
-        
+
         if E < 0.0 {
             E += 2.0 * PI;
         }
@@ -187,41 +182,43 @@ impl OrbitalMechanics {
     ///   omega: argument of periapsis [rad]
     ///   nu: true anomaly [rad]
     /// Returns: (position, velocity) in ECI frame [m, m/s]
-    pub fn keplerian_to_cartesian(elements: &na::Vector6<f64>) -> (na::Vector3<f64>, na::Vector3<f64>) {
+    pub fn keplerian_to_cartesian(
+        elements: &na::Vector6<f64>,
+    ) -> (na::Vector3<f64>, na::Vector3<f64>) {
         let mu = G * M_EARTH;
         let (a, e, i, omega_cap, omega, nu) = (
-            elements[0], elements[1], elements[2], 
-            elements[3], elements[4], elements[5]
+            elements[0],
+            elements[1],
+            elements[2],
+            elements[3],
+            elements[4],
+            elements[5],
         );
-        
+
         // Calculate position and velocity in orbital plane
         let p = a * (1.0 - e * e);
         let r_mag = p / (1.0 + e * nu.cos());
-        
+
         // Position in orbital plane
-        let r_orbital = na::Vector3::new(
-            r_mag * nu.cos(),
-            r_mag * nu.sin(),
-            0.0
-        );
-        
+        let r_orbital = na::Vector3::new(r_mag * nu.cos(), r_mag * nu.sin(), 0.0);
+
         // Velocity in orbital plane
         let v_orbital = na::Vector3::new(
             -(mu / p).sqrt() * nu.sin(),
             (mu / p).sqrt() * (e + nu.cos()),
-            0.0
+            0.0,
         );
-        
+
         // Rotation matrices
         let rot_omega = na::Rotation3::from_axis_angle(&na::Vector3::z_axis(), omega);
         let rot_i = na::Rotation3::from_axis_angle(&na::Vector3::x_axis(), i);
         let rot_omega_cap = na::Rotation3::from_axis_angle(&na::Vector3::z_axis(), omega_cap);
-        
+
         // Transform to ECI frame
         let transform = rot_omega_cap * rot_i * rot_omega;
         let r_eci = transform * r_orbital;
         let v_eci = transform * v_orbital;
-        
+
         (r_eci, v_eci)
     }
-} 
+}

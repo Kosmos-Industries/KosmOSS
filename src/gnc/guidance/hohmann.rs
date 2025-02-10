@@ -1,7 +1,7 @@
-use nalgebra as na;
-use crate::physics::orbital::OrbitalMechanics;
-use crate::constants::{G, M_EARTH};
 use crate::config::spacecraft::SimpleSat;
+use crate::constants::{G, M_EARTH};
+use crate::physics::orbital::OrbitalMechanics;
+use nalgebra as na;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -40,7 +40,7 @@ impl ApsisTargeting {
         &self,
         r_current: &na::Vector3<f64>,
         v_current: &na::Vector3<f64>,
-        time_since_start: f64
+        time_since_start: f64,
     ) -> na::Vector3<f64> {
         if time_since_start < self.start_time {
             return na::Vector3::zeros();
@@ -61,41 +61,39 @@ impl ApsisTargeting {
 
         // Check if we're at the correct apsis for burning
         let (at_apogee, at_perigee) = OrbitalMechanics::is_near_apsis(
-            r_current, 
-            v_current,
-            100.0  // 100m tolerance
+            r_current, v_current, 100.0, // 100m tolerance
         );
 
         // At apogee, burn prograde to raise perigee
         // At perigee, burn prograde to raise apogee
-        if (self.apsis_type == ApsisType::Perigee && at_apogee) ||
-           (self.apsis_type == ApsisType::Apogee && at_perigee) {
-            
+        if (self.apsis_type == ApsisType::Perigee && at_apogee)
+            || (self.apsis_type == ApsisType::Apogee && at_perigee)
+        {
             let burn_direction = v_current.normalize();
-            
+
             // Calculate required delta-v based on current orbit
             let r = r_current.magnitude();
             let v = v_current.magnitude();
             let mu = G * M_EARTH;
-            
+
             // Calculate target velocity
             let target_v = match self.apsis_type {
                 ApsisType::Apogee => {
                     // At perigee, calculate required velocity for new apogee
-                    (mu * (2.0/r - 2.0/(self.target_radius + r))).sqrt()
-                },
+                    (mu * (2.0 / r - 2.0 / (self.target_radius + r))).sqrt()
+                }
                 ApsisType::Perigee => {
                     // At apogee, calculate required velocity for new perigee
-                    (mu * (2.0/r - 2.0/(self.target_radius + r))).sqrt()
+                    (mu * (2.0 / r - 2.0 / (self.target_radius + r))).sqrt()
                 }
             };
-            
+
             let delta_v = target_v - v;
-            let mut burn_magnitude = delta_v.abs().min(100.0);  // Limit to 100 m/s per step
+            let mut burn_magnitude = delta_v.abs().min(100.0); // Limit to 100 m/s per step
             if delta_v < 0.0 {
                 burn_magnitude *= -1.0;
             }
-            
+
             return burn_direction * burn_magnitude * SimpleSat::MASS;
         }
 

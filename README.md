@@ -1,4 +1,8 @@
 # KosmOSS
+
+[![Python CI](https://github.com/Kosmos-Industries/KosmOSS/actions/workflows/python.yml/badge.svg?branch=main)](https://github.com/Kosmos-Industries/KosmOSS/actions/workflows/python.yml)
+[![Rust CI](https://github.com/Kosmos-Industries/KosmOSS/actions/workflows/rust.yml/badge.svg)](https://github.com/Kosmos-Industries/KosmOSS/actions/workflows/rust.yml)
+
 Lightning fast aerospace software.
 
 ## Overview

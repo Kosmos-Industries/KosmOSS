@@ -24,6 +24,8 @@ jobs:
         with:
           path: ./.venv
           key: venv-${{ hashFiles('poetry.lock') }}
+      - name: Create lock file if it does not exist
+        run: poetry lock
       - name: Install project dependencies
         run: poetry install
       - name: Test
@@ -35,3 +37,4 @@ jobs:
       - uses: astral-sh/ruff-action@v3
         with:
           src: "./viz"
+          args: "format --check"

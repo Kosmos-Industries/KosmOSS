@@ -12,6 +12,7 @@ use constants::*;
 use csv::Writer;
 use gnc::control::attitude_controller::GeometricAttitudeController;
 use gnc::guidance::hohmann::{ApsisTargeting, ApsisType};
+use hifitime::{Duration, Epoch};
 use integrators::rk4::RK4;
 use models::State;
 use nalgebra as na;
@@ -20,10 +21,9 @@ use physics::energy::{calculate_angular_momentum, calculate_energy};
 use std::error::Error;
 use std::fs::{self, File};
 use std::path::Path;
-use hifitime::{Epoch, Duration};
-fn main() -> Result<(), Box<dyn Error>> {
-    use physics::orbital::OrbitalMechanics;
+use physics::orbital::OrbitalMechanics;
 
+fn main() -> Result<(), Box<dyn Error>> {
     let perigee_alt = 400_000.0; // meters
     let apogee_alt = 600_000.0; // meters
     let ra = WGS84_A + apogee_alt;
@@ -42,7 +42,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let (initial_position, initial_velocity) = OrbitalMechanics::keplerian_to_cartesian(&elements);
     
-    // compute orbital period first
     let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
     
     // Set simulation start and end times using proper time scales
@@ -147,16 +146,15 @@ fn main() -> Result<(), Box<dyn Error>> {
         let gmst = (EARTH_ANGULAR_VELOCITY * current_time) % (2.0 * PI);
 
         // Add EOPData
-        let eop = coordinates::coordinate_transformation::EOPData::from_epoch(
-            current_epoch
-        ).unwrap_or_else(|_| coordinates::coordinate_transformation::EOPData {
-            x_pole: 0.161556,      // Default values in arcseconds
-            y_pole: 0.247219,
-            ut1_utc: -0.0890529, // Default UT1-UTC offset in seconds
-            lod: 0.0017,         // Length of day offset in seconds
-            ddpsi: -0.052,       // Nutation corrections in arcseconds
-            ddeps: -0.003,
-        });
+        let eop = coordinates::coordinate_transformation::EOPData::from_epoch(current_epoch)
+            .unwrap_or_else(|_| coordinates::coordinate_transformation::EOPData {
+                x_pole: 0.161556, // Default values in arcseconds
+                y_pole: 0.247219,
+                ut1_utc: -0.0890529, // Default UT1-UTC offset in seconds
+                lod: 0.0017,         // Length of day offset in seconds
+                ddpsi: -0.052,       // Nutation corrections in arcseconds
+                ddeps: -0.003,
+            });
 
         // Convert to geographic coordinates
         let itrs_pos =

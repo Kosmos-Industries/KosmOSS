@@ -1,7 +1,8 @@
 use crate::constants::*;
-use std::error::Error;
 use hifitime::Epoch;
 use nalgebra as na;
+use std::error::Error;
+
 pub struct EOPData {
     pub x_pole: f64,  // Polar motion x (arcsec)
     pub y_pole: f64,  // Polar motion y (arcsec)

@@ -1,4 +1,5 @@
 use super::attitude::{angular_acceleration, quaternion_derivative};
+use super::drag::drag_force;
 use super::gravity::gravity_acceleration;
 use crate::models::State;
 use nalgebra as na;
@@ -28,8 +29,9 @@ impl EquationsOfMotion for SpacecraftDynamics {
         // Position derivative is velocity
         derivative.position = state.velocity;
 
-        // Velocity derivative (gravity + thrust)
-        derivative.velocity = gravity_acceleration(&state.position);
+        // Velocity derivative (gravity + thrust + drag)
+        derivative.velocity = gravity_acceleration(&state.position)
+            + drag_force(&state.position, &state.velocity) / state.mass;
         if let Some(thrust) = &self.thrust {
             derivative.velocity += thrust / state.mass;
         }

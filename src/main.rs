@@ -41,9 +41,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let (initial_position, initial_velocity) = OrbitalMechanics::keplerian_to_cartesian(&elements);
-    
     let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
-    
+
     // Set simulation start and end times using proper time scales
     let start_time = Epoch::from_gregorian_utc(2024, 3, 15, 0, 0, 0, 0);
     let simulation_duration = Duration::from_seconds(orbital_period * 3.0);
@@ -61,8 +60,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let dt = 0.10; // Much smaller time step for accurate integration
-    
-    let simulation_time =  orbital_period*3.0;
+    let simulation_time = orbital_period * 3.0;
     let steps = (simulation_time / dt) as usize;
 
     let mut state = initial_state;

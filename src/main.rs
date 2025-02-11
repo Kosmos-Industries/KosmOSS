@@ -18,10 +18,10 @@ use models::State;
 use nalgebra as na;
 use physics::dynamics::SpacecraftDynamics;
 use physics::energy::{calculate_angular_momentum, calculate_energy};
+use physics::orbital::OrbitalMechanics;
 use std::error::Error;
 use std::fs::{self, File};
 use std::path::Path;
-use physics::orbital::OrbitalMechanics;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let perigee_alt = 400_000.0; // meters

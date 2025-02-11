@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Modify CSV header to include UTC time
     writer.write_record(&[
         "UTC Time",
-        "Time (s)",  // Changed from "Mission Elapsed Time (s)" for viz compatibility
+        "Time (s)", // Changed from "Mission Elapsed Time (s)" for viz compatibility
         "Position X (km)",
         "Position Y (km)",
         "Position Z (km)",

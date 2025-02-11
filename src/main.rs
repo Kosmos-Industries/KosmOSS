@@ -24,8 +24,8 @@ use std::fs::{self, File};
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let perigee_alt = 400_000.0; // meters
-    let apogee_alt = 600_000.0; // meters
+    let perigee_alt = 300_000.0; // meters
+    let apogee_alt = 450_000.0; // meters
     let ra = WGS84_A + apogee_alt;
     let rp = WGS84_A + perigee_alt;
     let a = (ra + rp) / 2.0;
@@ -110,7 +110,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Create Hohmann transfer guidance for raising apogee with 1 orbit delay
-    let target_apogee = 800_000.0; // meters
+    let target_apogee = 600_000.0; // meters
     let hohmann_guidance = ApsisTargeting::new(
         WGS84_A + target_apogee,
         ApsisType::Apogee,

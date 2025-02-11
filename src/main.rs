@@ -74,7 +74,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create CSV writer
     let file = File::create(output_dir.join("simulation_data.csv"))?;
     let mut writer = Writer::from_writer(file);
-    
+
     // Modify CSV header to include UTC time
     writer.write_record(&[
         "UTC Time",
@@ -120,7 +120,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for i in 0..steps {
         let current_time = i as f64 * dt;
         let current_epoch = start_time + Duration::from_seconds(current_time);
-        
+
         // Update state's time properties
         state.mission_elapsed_time = current_time;
         state.epoch = current_epoch;

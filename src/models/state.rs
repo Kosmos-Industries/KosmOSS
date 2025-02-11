@@ -11,11 +11,11 @@ pub struct State {
     // Orbital state
     pub position: na::Vector3<f64>,
     pub velocity: na::Vector3<f64>,
-    
+
     // Attitude state
     pub quaternion: Quaternion,
     pub angular_velocity: na::Vector3<f64>,
-    
+
     // Time properties
     pub epoch: Epoch,
     pub mission_elapsed_time: f64,

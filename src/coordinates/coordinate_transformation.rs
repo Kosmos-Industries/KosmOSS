@@ -1,8 +1,7 @@
 use crate::constants::*;
-use chrono::{DateTime, Utc};
-use nalgebra as na;
 use std::error::Error;
-
+use hifitime::Epoch;
+use nalgebra as na;
 pub struct EOPData {
     pub x_pole: f64,  // Polar motion x (arcsec)
     pub y_pole: f64,  // Polar motion y (arcsec)
@@ -96,8 +95,8 @@ pub fn itrs_to_geodetic(pos: &na::Vector3<f64>) -> (f64, f64, f64) {
 }
 
 impl EOPData {
-    /// Load EOP data from IERS Bulletin A format
-    pub fn from_iers_bulletin_a(_date: DateTime<Utc>) -> Result<Self, Box<dyn Error>> {
+    #[allow(dead_code)]
+    pub fn from_iers_bulletin_a(_date: Epoch) -> Result<Self, Box<dyn Error>> {
         // You would implement HTTP request to IERS servers here
         // For example: https://datacenter.iers.org/data/latestVersion/finals.all
 
@@ -123,5 +122,17 @@ impl EOPData {
             ddpsi: eop1.ddpsi + (eop2.ddpsi - eop1.ddpsi) * fraction,
             ddeps: eop1.ddeps + (eop2.ddeps - eop1.ddeps) * fraction,
         }
+    }
+
+    pub fn from_epoch(_epoch: Epoch) -> Result<Self, Box<dyn Error>> {
+        // For now, return default values until we implement proper EOP data lookup
+        Ok(EOPData {
+            x_pole: 0.161556,
+            y_pole: 0.247219,
+            ut1_utc: -0.0890529,
+            lod: 0.0017,
+            ddpsi: -0.052,
+            ddeps: -0.003,
+        })
     }
 }

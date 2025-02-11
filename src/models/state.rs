@@ -1,6 +1,6 @@
 use crate::numerics::quaternion::Quaternion;
+use hifitime::Epoch;
 use nalgebra as na;
-
 #[allow(dead_code)] // TODO: Remove this once we have a proper quaternion implementation.
 #[derive(Debug, Clone)]
 pub struct State {
@@ -15,9 +15,10 @@ pub struct State {
     // Attitude state
     pub quaternion: Quaternion,
     pub angular_velocity: na::Vector3<f64>,
-
-    // Additional properties
-    pub time: f64,
+    
+    // Time properties
+    pub epoch: Epoch,
+    pub mission_elapsed_time: f64,
     pub fuel_mass: f64,
 }
 
@@ -29,6 +30,7 @@ impl State {
         velocity: na::Vector3<f64>,
         quaternion: Quaternion,
         angular_velocity: na::Vector3<f64>,
+        epoch: Epoch,
     ) -> Self {
         State {
             mass,
@@ -37,7 +39,8 @@ impl State {
             velocity,
             quaternion,
             angular_velocity,
-            time: 0.0,
+            epoch,
+            mission_elapsed_time: 0.0,
             fuel_mass: mass * 0.1, // 10% of total mass is fuel
         }
     }
@@ -50,7 +53,8 @@ impl State {
             velocity: na::Vector3::zeros(),
             quaternion: Quaternion::new(1.0, 0.0, 0.0, 0.0),
             angular_velocity: na::Vector3::zeros(),
-            time: 0.0,
+            epoch: Epoch::now().expect("Failed to get current time"),
+            mission_elapsed_time: 0.0,
             fuel_mass: 0.0,
         }
     }
@@ -72,7 +76,8 @@ impl std::ops::Add for State {
                 self.quaternion.vector()[2] + other.quaternion.vector()[2],
             ),
             angular_velocity: self.angular_velocity + other.angular_velocity,
-            time: self.time + other.time,
+            epoch: self.epoch,
+            mission_elapsed_time: self.mission_elapsed_time + other.mission_elapsed_time,
             fuel_mass: self.fuel_mass,
         }
     }
@@ -94,7 +99,8 @@ impl std::ops::Mul<f64> for State {
                 self.quaternion.vector()[2] * scalar,
             ),
             angular_velocity: self.angular_velocity * scalar,
-            time: self.time * scalar,
+            epoch: self.epoch,
+            mission_elapsed_time: self.mission_elapsed_time * scalar,
             fuel_mass: self.fuel_mass,
         }
     }

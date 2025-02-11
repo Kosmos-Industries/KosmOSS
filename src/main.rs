@@ -7,7 +7,6 @@ mod models;
 mod numerics;
 mod physics;
 use crate::numerics::quaternion::Quaternion;
-use chrono;
 use config::spacecraft::SimpleSat;
 use constants::*;
 use csv::Writer;
@@ -21,7 +20,7 @@ use physics::energy::{calculate_angular_momentum, calculate_energy};
 use std::error::Error;
 use std::fs::{self, File};
 use std::path::Path;
-
+use hifitime::{Epoch, Duration};
 fn main() -> Result<(), Box<dyn Error>> {
     use physics::orbital::OrbitalMechanics;
 
@@ -42,23 +41,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let (initial_position, initial_velocity) = OrbitalMechanics::keplerian_to_cartesian(&elements);
+    
+    // compute orbital period first
+    let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
+    
+    // Set simulation start and end times using proper time scales
+    let start_time = Epoch::from_gregorian_utc(2024, 3, 15, 0, 0, 0, 0);
+    let simulation_duration = Duration::from_seconds(orbital_period * 3.0);
+    let _end_time = start_time + simulation_duration;
 
-    // Create initial state
+    // Create initial state with epoch
     let initial_state = State::new(
         SimpleSat::MASS,
         SimpleSat::inertia_tensor(),
         initial_position,
         initial_velocity,
-        Quaternion::new(1.0, 0.0, 0.0, 0.0), // Identity quaternion
-        na::Vector3::new(0.01, 0.0, 0.0),    // Pure X-axis rotation
+        Quaternion::new(1.0, 0.0, 0.0, 0.0),
+        na::Vector3::new(0.01, 0.0, 0.0),
+        start_time,
     );
 
     let dt = 0.10; // Much smaller time step for accurate integration
-
-    // compute orbital period
-    let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
-
-    let simulation_time = orbital_period * 3.0;
+    
+    let simulation_time =  orbital_period*3.0;
     let steps = (simulation_time / dt) as usize;
 
     let mut state = initial_state;
@@ -72,10 +77,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create CSV writer
     let file = File::create(output_dir.join("simulation_data.csv"))?;
     let mut writer = Writer::from_writer(file);
-
-    // Write header with additional attitude columns
+    
+    // Modify CSV header to include UTC time
     writer.write_record(&[
-        "Time (s)",
+        "UTC Time",
+        "Time (s)",  // Changed from "Mission Elapsed Time (s)" for viz compatibility
         "Position X (km)",
         "Position Y (km)",
         "Position Z (km)",
@@ -116,6 +122,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for i in 0..steps {
         let current_time = i as f64 * dt;
+        let current_epoch = start_time + Duration::from_seconds(current_time);
+        
+        // Update state's time properties
+        state.mission_elapsed_time = current_time;
+        state.epoch = current_epoch;
 
         // Compute control inputs
         let thrust =
@@ -136,11 +147,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         let gmst = (EARTH_ANGULAR_VELOCITY * current_time) % (2.0 * PI);
 
         // Add EOPData
-        let eop = coordinates::coordinate_transformation::EOPData::from_iers_bulletin_a(
-            chrono::Utc::now(),
-        )
-        .unwrap_or(coordinates::coordinate_transformation::EOPData {
-            x_pole: 0.161556, // Default values in arcseconds
+        let eop = coordinates::coordinate_transformation::EOPData::from_epoch(
+            current_epoch
+        ).unwrap_or_else(|_| coordinates::coordinate_transformation::EOPData {
+            x_pole: 0.161556,      // Default values in arcseconds
             y_pole: 0.247219,
             ut1_utc: -0.0890529, // Default UT1-UTC offset in seconds
             lod: 0.0017,         // Length of day offset in seconds
@@ -168,6 +178,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // Write data to CSV with attitude state
             writer.write_record(&[
+                format!("{}", current_epoch),
                 format!("{:.1}", current_time),
                 format!("{:.3}", state.position[0] / 1000.0),
                 format!("{:.3}", state.position[1] / 1000.0),

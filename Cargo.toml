@@ -8,4 +8,4 @@ nalgebra = "0.32.3"  # For linear algebra and vectors
 rand = "0.8.5"       # For random number generation if needed
 csv = "1.3"
 approx = "0.5"  # For float comparisons in tests
-chrono = "0.4"
+hifitime = "3.9.0"  # Latest stable version

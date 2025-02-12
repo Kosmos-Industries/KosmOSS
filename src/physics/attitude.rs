@@ -1,5 +1,5 @@
-use crate::models::State;
 use crate::models::spacecraft::SpacecraftProperties;
+use crate::models::State;
 use crate::numerics::quaternion::{compute_quaternion_derivative, Quaternion};
 use nalgebra as na;
 

@@ -1,6 +1,6 @@
 use crate::constants::{G, M_EARTH};
-use crate::models::state::State;
 use crate::models::spacecraft::SpacecraftProperties;
+use crate::models::state::State;
 use nalgebra as na;
 
 pub fn calculate_energy<T: SpacecraftProperties>(state: &State<T>) -> f64 {

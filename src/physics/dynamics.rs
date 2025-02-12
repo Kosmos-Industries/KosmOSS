@@ -1,8 +1,8 @@
 use super::attitude::{angular_acceleration, quaternion_derivative};
 use super::drag::drag_force;
 use super::gravity::gravity_acceleration;
-use crate::models::State;
 use crate::models::spacecraft::SpacecraftProperties;
+use crate::models::State;
 use nalgebra as na;
 use std::marker::PhantomData;
 
@@ -19,8 +19,8 @@ pub struct SpacecraftDynamics<'a, T: SpacecraftProperties> {
 
 impl<'a, T: SpacecraftProperties> SpacecraftDynamics<'a, T> {
     pub fn new(thrust: Option<na::Vector3<f64>>, torque: Option<na::Vector3<f64>>) -> Self {
-        Self { 
-            thrust, 
+        Self {
+            thrust,
             torque,
             _phantom: PhantomData,
         }

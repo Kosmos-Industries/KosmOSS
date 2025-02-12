@@ -1,7 +1,7 @@
 use crate::constants::{G, M_EARTH};
+use crate::models::spacecraft::SpacecraftProperties;
 use crate::physics::orbital::OrbitalMechanics;
 use nalgebra as na;
-use crate::models::spacecraft::SpacecraftProperties;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]

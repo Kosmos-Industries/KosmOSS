@@ -1,7 +1,7 @@
+use crate::models::spacecraft::SpacecraftProperties;
 use crate::numerics::quaternion::Quaternion;
 use hifitime::Epoch;
 use nalgebra as na;
-use crate::models::spacecraft::SpacecraftProperties;
 
 #[derive(Debug)]
 pub struct State<'a, T: SpacecraftProperties> {

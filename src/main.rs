@@ -36,9 +36,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         a,                     // semi-major axis
         e,                     // eccentricity
         89.0_f64.to_radians(), // inclination (ISS-like)
-        PI*0.7,                   // RAAN
+        PI * 0.7,              // RAAN
         0.0,                   // argument of periapsis
-        PI,                   // true anomaly (starting at perigee)
+        PI,                    // true anomaly (starting at perigee)
     );
 
     let (initial_position, initial_velocity) = OrbitalMechanics::keplerian_to_cartesian(&elements);
@@ -127,8 +127,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         state.epoch = current_epoch;
 
         // Compute control inputs
-        let thrust =
-            hohmann_guidance.get_desired_force(&SPACECRAFT, &state.position, &state.velocity, current_time);
+        let thrust = hohmann_guidance.get_desired_force(
+            &SPACECRAFT,
+            &state.position,
+            &state.velocity,
+            current_time,
+        );
 
         let control_torque = attitude_controller.compute_control_torque(
             &state.position,

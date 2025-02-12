@@ -1,7 +1,7 @@
-use crate::config::spacecraft::SimpleSat;
 use crate::constants::{G, M_EARTH};
 use crate::physics::orbital::OrbitalMechanics;
 use nalgebra as na;
+use crate::models::spacecraft::SpacecraftProperties;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -36,8 +36,9 @@ impl ApsisTargeting {
         self.target_radius
     }
 
-    pub fn get_desired_force(
+    pub fn get_desired_force<T: SpacecraftProperties>(
         &self,
+        spacecraft: &T,
         r_current: &na::Vector3<f64>,
         v_current: &na::Vector3<f64>,
         time_since_start: f64,
@@ -94,7 +95,7 @@ impl ApsisTargeting {
                 burn_magnitude *= -1.0;
             }
 
-            return burn_direction * burn_magnitude * SimpleSat::MASS;
+            return burn_direction * burn_magnitude * spacecraft.mass();
         }
 
         na::Vector3::zeros()

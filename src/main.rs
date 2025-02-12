@@ -24,8 +24,9 @@ use std::fs::{self, File};
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let perigee_alt = 300_000.0; // meters
-    let apogee_alt = 450_000.0; // meters
+    static SPACECRAFT: SimpleSat = SimpleSat;
+    let perigee_alt = 50_000.0; // meters
+    let apogee_alt = 400_000.0; // meters
     let ra = WGS84_A + apogee_alt;
     let rp = WGS84_A + perigee_alt;
     let a = (ra + rp) / 2.0;
@@ -34,23 +35,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let elements = na::Vector6::new(
         a,                     // semi-major axis
         e,                     // eccentricity
-        51.6_f64.to_radians(), // inclination (ISS-like)
-        0.0,                   // RAAN
+        89.0_f64.to_radians(), // inclination (ISS-like)
+        PI*0.7,                   // RAAN
         0.0,                   // argument of periapsis
-        0.0,                   // true anomaly (starting at perigee)
+        PI,                   // true anomaly (starting at perigee)
     );
 
     let (initial_position, initial_velocity) = OrbitalMechanics::keplerian_to_cartesian(&elements);
-    let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
+    //let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
 
     // Set simulation start and end times using proper time scales
     let start_time = Epoch::from_gregorian_utc(2024, 3, 15, 0, 0, 0, 0);
-    let simulation_duration = Duration::from_seconds(orbital_period * 3.0);
+    let simulation_duration = Duration::from_seconds(3200.0);
     let _end_time = start_time + simulation_duration;
 
     // Create initial state with epoch
     let initial_state = State::new(
-        SimpleSat::MASS,
+        &SPACECRAFT,
         SimpleSat::inertia_tensor(),
         initial_position,
         initial_velocity,
@@ -59,8 +60,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         start_time,
     );
 
-    let dt = 0.10; // Much smaller time step for accurate integration
-    let simulation_time = orbital_period * 3.0;
+    let dt = 0.01; // Much smaller time step for accurate integration
+    let simulation_time = 3200.0;
     let steps = (simulation_time / dt) as usize;
 
     let mut state = initial_state;
@@ -110,11 +111,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Create Hohmann transfer guidance for raising apogee with 1 orbit delay
-    let target_apogee = 600_000.0; // meters
+    let target_apogee = 400_000.0; // meters
     let hohmann_guidance = ApsisTargeting::new(
         WGS84_A + target_apogee,
         ApsisType::Apogee,
-        orbital_period, // Start after one orbit
+        0.0, // Start after one orbit
     );
 
     for i in 0..steps {
@@ -127,7 +128,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Compute control inputs
         let thrust =
-            hohmann_guidance.get_desired_force(&state.position, &state.velocity, current_time);
+            hohmann_guidance.get_desired_force(&SPACECRAFT, &state.position, &state.velocity, current_time);
 
         let control_torque = attitude_controller.compute_control_torque(
             &state.position,
@@ -137,7 +138,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
 
         // Update dynamics with control inputs
-        let dynamics = SpacecraftDynamics::new(Some(thrust), Some(control_torque));
+        let dynamics = SpacecraftDynamics::<SimpleSat>::new(Some(thrust), Some(control_torque));
         let integrator = RK4::new(dynamics);
 
         // Calculate Earth rotation

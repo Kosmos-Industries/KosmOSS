@@ -66,6 +66,38 @@ This will generate both static and interactive visualization dashboards showing:
 - Energy and angular momentum conservation
 - Ground track on Earth map
 
+## Finite State Machine (FSM)
+
+The spacecraft simulation includes a state machine that manages different operational modes:
+
+### States
+- **Safe Mode**: Initial state with minimal system activity
+- **Detumbling**: Active attitude control to reduce angular velocity
+- **Nominal Operation**: Normal orbital operations
+- **Maneuver Preparation**: Pre-maneuver checks and preparation
+- **Maneuvering**: Active orbital maneuver execution
+- **Emergency**: Fault handling and recovery
+
+### State Transitions
+- Safe Mode → Detumbling: When angular velocity exceeds threshold
+- Detumbling → Nominal Operation: When angular velocity is stabilized
+- Nominal Operation → Maneuver Prep: When maneuver is commanded
+- Maneuver Prep → Maneuvering: After preparation period
+- Any State → Emergency: When angular velocity exceeds safety threshold
+- Emergency → Safe Mode: After recovery period
+
+### Control Authority
+The FSM determines:
+- When attitude control can be applied
+- When orbital maneuvers can be executed
+- Safety constraints for spacecraft operations
+
+### Usage
+The FSM automatically evaluates state transitions based on spacecraft dynamics and mission time. Maneuvers can only be commanded during Nominal Operation state.
+
+Example state sequence:
+Safe Mode → Detumbling → Nominal Operation → Maneuver Prep → Maneuvering → Nominal Operation
+
 ## Contributing
 
 We welcome contributions! Please:

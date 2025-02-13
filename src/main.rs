@@ -36,8 +36,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         a,                     // semi-major axis
         e,                     // eccentricity
         89.0_f64.to_radians(), // inclination (ISS-like)
-        PI * 0.7,              // RAAN
-        0.0,                   // argument of periapsis
+        PI * 1.0,              // RAAN
+        PI * 0.075,            // argument of periapsis
         PI,                    // true anomaly (starting at perigee)
     );
 
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     //let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
 
     // Set simulation start and end times using proper time scales
-    let start_time = Epoch::from_gregorian_utc(2024, 3, 15, 0, 0, 0, 0);
+    let start_time = Epoch::from_gregorian_utc(2024, 3, 1, 23, 10, 0, 0);
     let simulation_duration = Duration::from_seconds(3200.0);
     let _end_time = start_time + simulation_duration;
 
@@ -148,23 +148,26 @@ fn main() -> Result<(), Box<dyn Error>> {
         let dynamics = SpacecraftDynamics::<SimpleSat>::new(Some(thrust), Some(control_torque));
         let integrator = RK4::new(dynamics);
 
-        // Calculate Earth rotation
-        let gmst = (EARTH_ANGULAR_VELOCITY * current_time) % (2.0 * PI);
-
         // Add EOPData
         let eop = coordinates::coordinate_transformation::EOPData::from_epoch(current_epoch)
-            .unwrap_or_else(|_| coordinates::coordinate_transformation::EOPData {
-                x_pole: 0.161556, // Default values in arcseconds
-                y_pole: 0.247219,
-                ut1_utc: -0.0890529, // Default UT1-UTC offset in seconds
-                lod: 0.0017,         // Length of day offset in seconds
-                ddpsi: -0.052,       // Nutation corrections in arcseconds
-                ddeps: -0.003,
+            .unwrap_or_else(|e| {
+                eprintln!("Warning: Failed to get EOP data: {}. Using defaults.", e);
+                coordinates::coordinate_transformation::EOPData {
+                    x_pole: 0.161556,
+                    y_pole: 0.247219,
+                    ut1_utc: -0.0890529,
+                    lod: 0.0017,
+                    ddpsi: -0.052,
+                    ddeps: -0.003,
+                }
             });
 
         // Convert to geographic coordinates
-        let itrs_pos =
-            crate::coordinates::coordinate_transformation::eci_to_itrs(&state.position, gmst, &eop);
+        let itrs_pos = crate::coordinates::coordinate_transformation::gcrs_to_itrs(
+            &state.position,
+            &current_epoch,
+            &eop,
+        );
         let (longitude, latitude, altitude) =
             crate::coordinates::coordinate_transformation::itrs_to_geodetic(&itrs_pos);
 

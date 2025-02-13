@@ -24,10 +24,9 @@ use std::fs::{self, File};
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    use physics::orbital::OrbitalMechanics;
-
-    let perigee_alt = 300_000.0; // meters
-    let apogee_alt = 450_000.0; // meters
+    static SPACECRAFT: SimpleSat = SimpleSat;
+    let perigee_alt = 50_000.0; // meters
+    let apogee_alt = 400_000.0; // meters
     let ra = WGS84_A + apogee_alt;
     let rp = WGS84_A + perigee_alt;
     let a = (ra + rp) / 2.0;
@@ -36,23 +35,23 @@ fn main() -> Result<(), Box<dyn Error>> {
     let elements = na::Vector6::new(
         a,                     // semi-major axis
         e,                     // eccentricity
-        51.6_f64.to_radians(), // inclination (ISS-like)
-        0.0,                   // RAAN
+        89.0_f64.to_radians(), // inclination (ISS-like)
+        PI * 0.7,              // RAAN
         0.0,                   // argument of periapsis
-        0.0,                   // true anomaly (starting at perigee)
+        PI,                    // true anomaly (starting at perigee)
     );
 
     let (initial_position, initial_velocity) = OrbitalMechanics::keplerian_to_cartesian(&elements);
-    let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
+    //let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
 
     // Set simulation start and end times using proper time scales
     let start_time = Epoch::from_gregorian_utc(2024, 3, 15, 0, 0, 0, 0);
-    let simulation_duration = Duration::from_seconds(orbital_period * 3.0);
+    let simulation_duration = Duration::from_seconds(3200.0);
     let _end_time = start_time + simulation_duration;
 
     // Create initial state with epoch
     let initial_state = State::new(
-        SimpleSat::MASS,
+        &SPACECRAFT,
         SimpleSat::inertia_tensor(),
         initial_position,
         initial_velocity,
@@ -61,8 +60,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         start_time,
     );
 
-    let dt = 0.10; // Much smaller time step for accurate integration
-    let simulation_time = orbital_period * 3.0;
+    let dt = 0.01; // Much smaller time step for accurate integration
+    let simulation_time = 3200.0;
     let steps = (simulation_time / dt) as usize;
 
     let mut state = initial_state;
@@ -80,10 +79,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Modify CSV header to include UTC time
     writer.write_record(&[
         "UTC Time",
-        "Time (s)", // Changed from "Mission Elapsed Time (s)" for viz compatibility
+        "Time (s)",
         "Position X (km)",
         "Position Y (km)",
         "Position Z (km)",
+        "Velocity X (km/s)",
+        "Velocity Y (km/s)",
+        "Velocity Z (km/s)",
         "Longitude (deg)",
         "Latitude (deg)",
         "Altitude (km)",
@@ -112,11 +114,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     // Create Hohmann transfer guidance for raising apogee with 1 orbit delay
-    let target_apogee = 600_000.0; // meters
+    let target_apogee = 400_000.0; // meters
     let hohmann_guidance = ApsisTargeting::new(
         WGS84_A + target_apogee,
         ApsisType::Apogee,
-        orbital_period, // Start after one orbit
+        0.0, // Start after one orbit
     );
 
     for i in 0..steps {
@@ -128,8 +130,12 @@ fn main() -> Result<(), Box<dyn Error>> {
         state.epoch = current_epoch;
 
         // Compute control inputs
-        let thrust =
-            hohmann_guidance.get_desired_force(&state.position, &state.velocity, current_time);
+        let thrust = hohmann_guidance.get_desired_force(
+            &SPACECRAFT,
+            &state.position,
+            &state.velocity,
+            current_time,
+        );
 
         let control_torque = attitude_controller.compute_control_torque(
             &state.position,
@@ -139,7 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
 
         // Update dynamics with control inputs
-        let dynamics = SpacecraftDynamics::new(Some(thrust), Some(control_torque));
+        let dynamics = SpacecraftDynamics::<SimpleSat>::new(Some(thrust), Some(control_torque));
         let integrator = RK4::new(dynamics);
 
         // Calculate Earth rotation
@@ -176,29 +182,32 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             // Write data to CSV with attitude state
             writer.write_record(&[
-                format!("{}", current_epoch),
-                format!("{:.1}", current_time),
-                format!("{:.3}", state.position[0] / 1000.0),
-                format!("{:.3}", state.position[1] / 1000.0),
-                format!("{:.3}", state.position[2] / 1000.0),
-                format!("{:.6}", longitude),
-                format!("{:.6}", latitude),
-                format!("{:.3}", altitude / 1000.0), // Convert to km
-                format!("{:.6}", state.quaternion.scalar()),
-                format!("{:.6}", state.quaternion.vector()[0]),
-                format!("{:.6}", state.quaternion.vector()[1]),
-                format!("{:.6}", state.quaternion.vector()[2]),
-                format!("{:.6}", state.angular_velocity[0]),
-                format!("{:.6}", state.angular_velocity[1]),
-                format!("{:.6}", state.angular_velocity[2]),
-                format!("{:.6e}", energy_error),
-                format!("{:.6e}", angular_momentum_error),
-                format!("{:.6e}", control_torque[0]),
-                format!("{:.6e}", control_torque[1]),
-                format!("{:.6e}", control_torque[2]),
-                format!("{:.6e}", thrust[0]),
-                format!("{:.6e}", thrust[1]),
-                format!("{:.6e}", thrust[2]),
+                &current_epoch.to_string(),
+                &current_time.to_string(),
+                &(state.position.x / 1000.0).to_string(),
+                &(state.position.y / 1000.0).to_string(),
+                &(state.position.z / 1000.0).to_string(),
+                &(state.velocity.x / 1000.0).to_string(),
+                &(state.velocity.y / 1000.0).to_string(),
+                &(state.velocity.z / 1000.0).to_string(),
+                &longitude.to_string(),
+                &latitude.to_string(),
+                &(altitude / 1000.0).to_string(), // Convert to km
+                &state.quaternion.scalar().to_string(),
+                &state.quaternion.vector()[0].to_string(),
+                &state.quaternion.vector()[1].to_string(),
+                &state.quaternion.vector()[2].to_string(),
+                &state.angular_velocity[0].to_string(),
+                &state.angular_velocity[1].to_string(),
+                &state.angular_velocity[2].to_string(),
+                &energy_error.to_string(),
+                &angular_momentum_error.to_string(),
+                &control_torque[0].to_string(),
+                &control_torque[1].to_string(),
+                &control_torque[2].to_string(),
+                &thrust[0].to_string(),
+                &thrust[1].to_string(),
+                &thrust[2].to_string(),
             ])?;
         }
         state = integrator.integrate(&state, dt);

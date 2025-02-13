@@ -17,6 +17,7 @@ import cartopy.feature as cfeature
 from matplotlib.widgets import Button
 import cartopy.mpl.ticker as mticker
 import warnings
+from matplotlib import cm
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -217,12 +218,66 @@ def create_dashboard(fig):
         ax_map.legend()
 
         # 3D Trajectory (bottom left)
-        ax_3d = fig.add_subplot(gs[1, 0], projection="3d")
-        ax_3d.plot(df["Position X (km)"], df["Position Y (km)"], df["Position Z (km)"])
-        ax_3d.set_xlabel("X [km]")
-        ax_3d.set_ylabel("Y [km]")
-        ax_3d.set_zlabel("Z [km]")
-        ax_3d.set_title("Orbital Trajectory")
+        ax = fig.add_subplot(gs[1, 0], projection="3d")
+
+        # Create Earth sphere
+        r = 6378.137  # Earth radius in km (WGS84)
+        phi = np.linspace(0, 2 * np.pi, 100)
+        theta = np.linspace(0, np.pi, 100)
+        phi, theta = np.meshgrid(phi, theta)
+
+        x = r * np.sin(theta) * np.cos(phi)
+        y = r * np.sin(theta) * np.sin(phi)
+        z = r * np.cos(theta)
+
+        # Plot Earth as a translucent blue sphere
+        ax.plot_surface(x, y, z, cmap=cm.Blues, alpha=0.3)
+
+        # Create colored trajectory
+        points = np.array(
+            [df["Position X (km)"], df["Position Y (km)"], df["Position Z (km)"]]
+        ).T.reshape(-1, 1, 3)
+        segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+        # Create line collection for 3D
+        from mpl_toolkits.mplot3d.art3d import Line3DCollection
+
+        colors = df["Time (s)"][:-1]
+        norm = plt.Normalize(colors.min(), colors.max())
+        lc = Line3DCollection(segments, cmap="plasma", norm=norm)
+        lc.set_array(colors)
+        ax.add_collection3d(lc)
+
+        # Add colorbar
+        cbar = plt.colorbar(
+            lc,
+            ax=ax,
+            orientation="horizontal",
+            pad=0.08,
+            fraction=0.015,
+        )
+        cbar.set_label("Mission Elapsed Time [hours]")
+        cbar.ax.xaxis.set_major_formatter(
+            plt.FuncFormatter(lambda x, p: f"{x / 3600:.1f}")
+        )
+
+        # Set equal aspect ratio and limits
+        max_range = max(
+            df["Position X (km)"].abs().max(),
+            df["Position Y (km)"].abs().max(),
+            df["Position Z (km)"].abs().max(),
+        )
+        max_range = max_range * 1.1  # Add 10% margin
+        ax.set_xlim([-max_range, max_range])
+        ax.set_ylim([-max_range, max_range])
+        ax.set_zlim([-max_range, max_range])
+        ax.set_box_aspect([1, 1, 1])  # This makes it perfectly cubic
+
+        # Labels
+        ax.set_xlabel("X [km]")
+        ax.set_ylabel("Y [km]")
+        ax.set_zlabel("Z [km]")
+        ax.set_title("Orbital Trajectory")
 
         # Orbital Altitudes (bottom right)
         ax_alt = fig.add_subplot(gs[1, 1])
@@ -234,16 +289,18 @@ def create_dashboard(fig):
 
         # Clear old buttons and create new ones
         buttons.clear()
-        for i, name in enumerate(["Orbit", "Attitude", "Controls"]):
-            button_ax = fig.add_axes([0.35 + i * 0.12, 0.95, 0.10, 0.03])
+        for i, name in enumerate(["Orbit", "Attitude", "Controls", "Aero"]):
+            button_ax = fig.add_axes([0.30 + i * 0.12, 0.95, 0.10, 0.03])
             btn = Button(button_ax, name, color="#2d2d2d", hovercolor="#4d4d4d")
             btn.label.set_color("white")
             if name == "Orbit":
                 btn.on_clicked(lambda x: create_orbit_tab())
             elif name == "Attitude":
                 btn.on_clicked(lambda x: create_attitude_tab())
-            else:
+            elif name == "Controls":
                 btn.on_clicked(lambda x: create_controls_tab())
+            else:
+                btn.on_clicked(lambda x: create_aero_tab())
             buttons.append(btn)
 
         plt.draw()
@@ -296,16 +353,18 @@ def create_dashboard(fig):
 
         # Clear old buttons and create new ones
         buttons.clear()
-        for i, name in enumerate(["Orbit", "Attitude", "Controls"]):
-            button_ax = fig.add_axes([0.35 + i * 0.12, 0.95, 0.10, 0.03])
+        for i, name in enumerate(["Orbit", "Attitude", "Controls", "Aero"]):
+            button_ax = fig.add_axes([0.30 + i * 0.12, 0.95, 0.10, 0.03])
             btn = Button(button_ax, name, color="#2d2d2d", hovercolor="#4d4d4d")
             btn.label.set_color("white")
             if name == "Orbit":
                 btn.on_clicked(lambda x: create_orbit_tab())
             elif name == "Attitude":
                 btn.on_clicked(lambda x: create_attitude_tab())
-            else:
+            elif name == "Controls":
                 btn.on_clicked(lambda x: create_controls_tab())
+            else:
+                btn.on_clicked(lambda x: create_aero_tab())
             buttons.append(btn)
 
         plt.draw()
@@ -353,16 +412,70 @@ def create_dashboard(fig):
 
         # Add buttons
         buttons.clear()
-        for i, name in enumerate(["Orbit", "Attitude", "Controls"]):
-            button_ax = fig.add_axes([0.35 + i * 0.12, 0.95, 0.10, 0.03])
+        for i, name in enumerate(["Orbit", "Attitude", "Controls", "Aero"]):
+            button_ax = fig.add_axes([0.30 + i * 0.12, 0.95, 0.10, 0.03])
             btn = Button(button_ax, name, color="#2d2d2d", hovercolor="#4d4d4d")
             btn.label.set_color("white")
             if name == "Orbit":
                 btn.on_clicked(lambda x: create_orbit_tab())
             elif name == "Attitude":
                 btn.on_clicked(lambda x: create_attitude_tab())
-            else:
+            elif name == "Controls":
                 btn.on_clicked(lambda x: create_controls_tab())
+            else:
+                btn.on_clicked(lambda x: create_aero_tab())
+            buttons.append(btn)
+
+        plt.draw()
+
+    def create_aero_tab(event=None):
+        global buttons
+        fig.clear()
+        gs = fig.add_gridspec(1, 1, top=0.9)
+
+        # Altitude vs Velocity plot
+        ax = fig.add_subplot(gs[0, 0])
+        velocity_magnitude = np.sqrt(
+            df["Velocity X (km/s)"] ** 2
+            + df["Velocity Y (km/s)"] ** 2
+            + df["Velocity Z (km/s)"] ** 2
+        )
+
+        # Create scatter plot with time-based coloring
+        scatter = ax.scatter(
+            velocity_magnitude,
+            df["Altitude (km)"],
+            c=df["Time (s)"],
+            cmap="plasma",
+            alpha=0.6,
+        )
+
+        # Add colorbar
+        cbar = plt.colorbar(scatter)
+        cbar.set_label("Mission Elapsed Time [hours]")
+        cbar.ax.yaxis.set_major_formatter(
+            plt.FuncFormatter(lambda x, p: f"{x / 3600:.1f}")
+        )
+
+        ax.set_xlabel("Velocity Magnitude [km/s]")
+        ax.set_ylabel("Altitude [km]")
+        ax.set_title("Altitude vs Velocity")
+        ax.grid(True)
+
+        # Clear old buttons and create new ones
+        buttons.clear()
+        for i, name in enumerate(["Orbit", "Attitude", "Controls", "Aero"]):
+            button_ax = fig.add_axes([0.30 + i * 0.12, 0.95, 0.10, 0.03])
+            btn = Button(button_ax, name, color="#2d2d2d", hovercolor="#4d4d4d")
+            btn.label.set_color("white")
+            if name == "Orbit":
+                btn.on_clicked(lambda x: create_orbit_tab())
+            elif name == "Attitude":
+                btn.on_clicked(lambda x: create_attitude_tab())
+            elif name == "Controls":
+                btn.on_clicked(lambda x: create_controls_tab())
+            else:
+                btn.on_clicked(lambda x: create_aero_tab())
             buttons.append(btn)
 
         plt.draw()

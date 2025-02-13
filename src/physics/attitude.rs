@@ -1,8 +1,9 @@
+use crate::models::spacecraft::SpacecraftProperties;
 use crate::models::State;
 use crate::numerics::quaternion::{compute_quaternion_derivative, Quaternion};
 use nalgebra as na;
 
-pub fn calculate_torque(state: &State) -> na::Vector3<f64> {
+pub fn calculate_torque<T: SpacecraftProperties>(state: &State<T>) -> na::Vector3<f64> {
     // Gravity gradient torque
     let r = state.position;
     let r_mag = r.magnitude();
@@ -19,8 +20,8 @@ pub fn calculate_torque(state: &State) -> na::Vector3<f64> {
         * z_body.cross(&(inertia * z_body))
 }
 
-pub fn angular_acceleration(
-    state: &State,
+pub fn angular_acceleration<T: SpacecraftProperties>(
+    state: &State<T>,
     external_torque: Option<na::Vector3<f64>>,
 ) -> na::Vector3<f64> {
     let inertia = state.inertia_tensor;
@@ -32,7 +33,7 @@ pub fn angular_acceleration(
     inertia.try_inverse().unwrap() * (torque - gyro)
 }
 
-pub fn quaternion_derivative(state: &State) -> Quaternion {
+pub fn quaternion_derivative<T: SpacecraftProperties>(state: &State<T>) -> Quaternion {
     // Only use body angular velocity for quaternion propagation
     compute_quaternion_derivative(&state.quaternion, &state.angular_velocity)
 }

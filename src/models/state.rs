@@ -1,10 +1,11 @@
+use crate::models::spacecraft::SpacecraftProperties;
 use crate::numerics::quaternion::Quaternion;
 use hifitime::Epoch;
 use nalgebra as na;
-#[allow(dead_code)] // TODO: Remove this once we have a proper quaternion implementation.
-#[derive(Debug, Clone)]
-pub struct State {
-    // Mass properties
+
+#[derive(Debug)]
+pub struct State<'a, T: SpacecraftProperties> {
+    pub spacecraft: &'a T,
     pub mass: f64,
     pub inertia_tensor: na::Matrix3<f64>,
 
@@ -22,9 +23,9 @@ pub struct State {
     pub fuel_mass: f64,
 }
 
-impl State {
+impl<'a, T: SpacecraftProperties> State<'a, T> {
     pub fn new(
-        mass: f64,
+        spacecraft: &'a T,
         inertia: na::Matrix3<f64>,
         position: na::Vector3<f64>,
         velocity: na::Vector3<f64>,
@@ -32,7 +33,9 @@ impl State {
         angular_velocity: na::Vector3<f64>,
         epoch: Epoch,
     ) -> Self {
+        let mass = spacecraft.mass();
         State {
+            spacecraft,
             mass,
             inertia_tensor: inertia,
             position,
@@ -45,9 +48,10 @@ impl State {
         }
     }
 
-    pub fn zero() -> Self {
+    pub fn zero(spacecraft: &'a T) -> Self {
         State {
-            mass: 0.0,
+            spacecraft,
+            mass: spacecraft.mass(),
             inertia_tensor: na::Matrix3::zeros(),
             position: na::Vector3::zeros(),
             velocity: na::Vector3::zeros(),
@@ -60,11 +64,12 @@ impl State {
     }
 }
 
-impl std::ops::Add for State {
-    type Output = State;
+impl<'a, T: SpacecraftProperties> std::ops::Add for State<'a, T> {
+    type Output = Self;
 
-    fn add(self, other: State) -> State {
+    fn add(self, other: Self) -> Self {
         State {
+            spacecraft: self.spacecraft,
             mass: self.mass,
             inertia_tensor: self.inertia_tensor,
             position: self.position + other.position,
@@ -83,11 +88,12 @@ impl std::ops::Add for State {
     }
 }
 
-impl std::ops::Mul<f64> for State {
-    type Output = State;
+impl<'a, T: SpacecraftProperties> std::ops::Mul<f64> for State<'a, T> {
+    type Output = Self;
 
-    fn mul(self, scalar: f64) -> State {
+    fn mul(self, scalar: f64) -> Self {
         State {
+            spacecraft: self.spacecraft,
             mass: self.mass,
             inertia_tensor: self.inertia_tensor,
             position: self.position * scalar,
@@ -101,6 +107,23 @@ impl std::ops::Mul<f64> for State {
             angular_velocity: self.angular_velocity * scalar,
             epoch: self.epoch,
             mission_elapsed_time: self.mission_elapsed_time * scalar,
+            fuel_mass: self.fuel_mass,
+        }
+    }
+}
+
+impl<'a, T: SpacecraftProperties> Clone for State<'a, T> {
+    fn clone(&self) -> Self {
+        State {
+            spacecraft: self.spacecraft,
+            mass: self.mass,
+            inertia_tensor: self.inertia_tensor,
+            position: self.position,
+            velocity: self.velocity,
+            quaternion: self.quaternion.clone(),
+            angular_velocity: self.angular_velocity,
+            epoch: self.epoch,
+            mission_elapsed_time: self.mission_elapsed_time,
             fuel_mass: self.fuel_mass,
         }
     }

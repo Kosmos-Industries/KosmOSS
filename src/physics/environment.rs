@@ -2,9 +2,12 @@ use crate::constants::*;
 use nalgebra as na;
 
 pub struct Environment {
+    #[allow(dead_code)]
     pub altitude: f64,
     pub density: f64,
+    #[allow(dead_code)]
     pub magnetic_field: na::Vector3<f64>,
+    #[allow(dead_code)]
     pub solar_flux: f64,
 }
 

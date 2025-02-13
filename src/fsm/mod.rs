@@ -1,2 +1,2 @@
 pub mod spacecraft_states;
-pub mod state_machine; 
+pub mod state_machine;

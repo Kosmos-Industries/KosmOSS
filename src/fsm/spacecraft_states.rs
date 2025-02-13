@@ -21,4 +21,4 @@ impl fmt::Display for SpacecraftState {
             SpacecraftState::Emergency => write!(f, "Emergency"),
         }
     }
-} 
+}

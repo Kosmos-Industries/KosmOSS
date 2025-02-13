@@ -7,6 +7,7 @@ mod integrators;
 mod models;
 mod numerics;
 mod physics;
+use crate::fsm::state_machine::SpacecraftFSM;
 use crate::numerics::quaternion::Quaternion;
 use config::spacecraft::SimpleSat;
 use constants::*;
@@ -23,7 +24,6 @@ use physics::orbital::OrbitalMechanics;
 use std::error::Error;
 use std::fs::{self, File};
 use std::path::Path;
-use crate::fsm::state_machine::SpacecraftFSM;
 
 fn main() -> Result<(), Box<dyn Error>> {
     static SPACECRAFT: SimpleSat = SimpleSat;
@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         initial_position,
         initial_velocity,
         Quaternion::new(1.0, 0.0, 0.0, 0.0),
-        na::Vector3::new(0.05, 0.02, 0.01),  // Higher initial angular velocity
+        na::Vector3::new(0.05, 0.02, 0.01), // Higher initial angular velocity
         start_time,
     );
 
@@ -159,7 +159,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 &state.quaternion,
                 &state.angular_velocity,
             );
-            
+
             let thrust = if fsm.should_apply_thrust() {
                 hohmann_guidance.get_desired_force(
                     &SPACECRAFT,
@@ -170,7 +170,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             } else {
                 na::Vector3::zeros()
             };
-            
+
             (thrust, control_torque)
         } else {
             (na::Vector3::zeros(), na::Vector3::zeros())

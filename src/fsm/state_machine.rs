@@ -1,6 +1,6 @@
 use super::spacecraft_states::SpacecraftState;
-use crate::models::State as VehicleState;
 use crate::models::spacecraft::SpacecraftProperties;
+use crate::models::State as VehicleState;
 
 pub struct SpacecraftFSM {
     current_state: SpacecraftState,
@@ -27,8 +27,10 @@ impl SpacecraftFSM {
 
     fn transition_to(&mut self, new_state: SpacecraftState, time: f64) {
         if self.current_state != new_state {
-            println!("State transition at t={:.2}s: {} -> {}", 
-                    time, self.current_state, new_state);
+            println!(
+                "State transition at t={:.2}s: {} -> {}",
+                time, self.current_state, new_state
+            );
             self.current_state = new_state;
             self.last_state_change = time;
         }
@@ -43,45 +45,60 @@ impl SpacecraftFSM {
                 if angular_velocity > self.angular_velocity_threshold {
                     self.transition_to(SpacecraftState::Detumbling, current_time);
                 }
-            },
+            }
             SpacecraftState::Detumbling => {
                 if angular_velocity < self.angular_velocity_threshold {
                     self.transition_to(SpacecraftState::NominalOperation, current_time);
                 }
-            },
+            }
             SpacecraftState::NominalOperation => {
                 if angular_velocity > self.emergency_angular_velocity {
                     self.transition_to(SpacecraftState::Emergency, current_time);
                 }
-            },
+            }
             SpacecraftState::ManeuverPrep => self.evaluate_maneuver_prep(state, current_time),
             SpacecraftState::Maneuvering => self.evaluate_maneuvering(state, current_time),
             SpacecraftState::Emergency => self.evaluate_emergency(state, current_time),
         }
     }
 
-    fn evaluate_maneuver_prep<T: SpacecraftProperties>(&mut self, vehicle_state: &VehicleState<T>, time: f64) {
+    fn evaluate_maneuver_prep<T: SpacecraftProperties>(
+        &mut self,
+        vehicle_state: &VehicleState<T>,
+        time: f64,
+    ) {
         let angular_velocity = vehicle_state.angular_velocity.magnitude();
-        
-        if angular_velocity < self.angular_velocity_threshold 
-            && time - self.last_state_change > 5.0 { // Minimum 5s prep time
+
+        if angular_velocity < self.angular_velocity_threshold && time - self.last_state_change > 5.0
+        {
+            // Minimum 5s prep time
             self.transition_to(SpacecraftState::Maneuvering, time);
         }
     }
 
-    fn evaluate_maneuvering<T: SpacecraftProperties>(&mut self, vehicle_state: &VehicleState<T>, time: f64) {
+    fn evaluate_maneuvering<T: SpacecraftProperties>(
+        &mut self,
+        vehicle_state: &VehicleState<T>,
+        time: f64,
+    ) {
         let angular_velocity = vehicle_state.angular_velocity.magnitude();
-        
+
         if angular_velocity > self.emergency_angular_velocity {
             self.transition_to(SpacecraftState::Emergency, time);
         }
     }
 
-    fn evaluate_emergency<T: SpacecraftProperties>(&mut self, vehicle_state: &VehicleState<T>, time: f64) {
+    fn evaluate_emergency<T: SpacecraftProperties>(
+        &mut self,
+        vehicle_state: &VehicleState<T>,
+        time: f64,
+    ) {
         let angular_velocity = vehicle_state.angular_velocity.magnitude();
-        
-        if angular_velocity < self.angular_velocity_threshold 
-            && time - self.last_state_change > 30.0 { // Minimum 30s in emergency
+
+        if angular_velocity < self.angular_velocity_threshold
+            && time - self.last_state_change > 30.0
+        {
+            // Minimum 30s in emergency
             self.transition_to(SpacecraftState::SafeMode, time);
         }
     }
@@ -100,7 +117,10 @@ impl SpacecraftFSM {
     }
 
     pub fn should_apply_control(&self) -> bool {
-        !matches!(self.current_state, SpacecraftState::SafeMode | SpacecraftState::Emergency)
+        !matches!(
+            self.current_state,
+            SpacecraftState::SafeMode | SpacecraftState::Emergency
+        )
     }
 
     pub fn should_apply_thrust(&self) -> bool {
@@ -110,4 +130,4 @@ impl SpacecraftFSM {
     pub fn get_last_state_change(&self) -> f64 {
         self.last_state_change
     }
-} 
+}

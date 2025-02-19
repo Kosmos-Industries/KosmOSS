@@ -24,12 +24,11 @@ impl TryFrom<Epoch> for EOPData {
     type Error = EOPErrors;
 
     /// Try to get EOP data for a given epoch
-    /// This will fetch the EOP data from the cache file if available otherwise it will fall back
-    /// to fetching the data from the Celestrak website
+    /// This will fetch the EOP data from the cache file if available otherwise it will fail
     fn try_from(epoch: Epoch) -> Result<Self, Self::Error> {
         let mut manager = EOP_MANAGER.lock().unwrap();
         manager.initialize()?; // Ensure cached data is available
-        manager.get_eop_data(epoch, true) // Fetch EOP data
+        manager.get_eop_data(epoch, false) // Fetch EOP data
     }
 }
 

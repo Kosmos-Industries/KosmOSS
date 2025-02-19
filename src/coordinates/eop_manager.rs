@@ -96,7 +96,6 @@ impl EOPManager {
     fn load_embedded_data(&mut self) -> Result<(), EOPErrors> {
         let data = include_bytes!(concat!(env!("OUT_DIR"), "/eop_cache.csv")); // Use compile-time cached data
         self.parse_eop_data_from_bytes(data)?;
-        println!("Loaded EOP data from compile-time cache.");
         Ok(())
     }
 

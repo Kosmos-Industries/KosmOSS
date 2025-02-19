@@ -177,7 +177,7 @@ fn integration_test() -> Result<(), Box<dyn std::error::Error>> {
         let integrator = RK4::new(dynamics);
 
         // Add EOPData
-        let eop = coordinates::coordinate_transformation::EOPData::from_epoch(current_epoch)
+        let eop = coordinates::coordinate_transformation::EOPData::try_from(current_epoch)
             .unwrap_or_else(|e| {
                 eprintln!("Warning: Failed to get EOP data: {}. Using defaults.", e);
                 coordinates::coordinate_transformation::EOPData {

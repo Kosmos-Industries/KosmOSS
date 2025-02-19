@@ -1,5 +1,5 @@
 use reqwest;
-use std::{fmt, io, num::ParseFloatError};
+use std::{error::Error, fmt, io, num::ParseFloatError};
 
 #[derive(Debug)]
 pub enum EOPErrors {
@@ -27,6 +27,8 @@ impl fmt::Display for EOPErrors {
         }
     }
 }
+
+impl Error for EOPErrors {}
 
 // Implement `From<T>` conversions for automatic error mapping
 impl From<io::Error> for EOPErrors {

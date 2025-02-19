@@ -21,6 +21,19 @@ pub struct EOPData {
     pub ddeps: f64,   // Nutation correction to obliquity (arcsec)
 }
 
+impl Default for EOPData {
+    fn default() -> Self {
+        EOPData {
+            x_pole: 0.161556,
+            y_pole: 0.247219,
+            ut1_utc: -0.0890529,
+            lod: 0.0017,
+            ddpsi: -0.052,
+            ddeps: -0.003,
+        }
+    }
+}
+
 impl TryFrom<Epoch> for EOPData {
     type Error = EOPErrors;
 

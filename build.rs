@@ -10,7 +10,6 @@ const CELESTRAK_URL: &str = "https://celestrak.org/SpaceData/EOP-All.csv";
 const CACHE_FILE: &str = "eop_cache.csv";
 const CACHE_EXPIRATION_HOURS: u64 = 6; // CelesTrak updates every 6 hours
 
-// Example custom build script.
 fn main() {
     // Get Cargo's OUT_DIR (temporary build directory)
     let out_dir = env::var("OUT_DIR").expect("Cargo should set OUT_DIR");
@@ -23,7 +22,6 @@ fn main() {
     }
 }
 
-// Function to fetch EOP data
 fn fetch_eop_data(cache_path: &PathBuf) -> Result<(), Box<dyn Error>> {
     // Check last modified time of cache
     if let Ok(metadata) = fs::metadata(cache_path) {

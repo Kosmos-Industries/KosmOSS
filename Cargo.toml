@@ -3,6 +3,10 @@ name = "KosmOSS"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "kosmoss"
+path = "src/lib.rs"
+
 [dependencies]
 nalgebra = "0.32.3"  # For linear algebra and vectors
 rand = "0.8.5"       # For random number generation if needed

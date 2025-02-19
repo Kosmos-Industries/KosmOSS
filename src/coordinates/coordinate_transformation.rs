@@ -4,10 +4,11 @@ use crate::coordinates::eop_manager::EOPManager;
 use hifitime::Epoch;
 use lazy_static::lazy_static;
 use nalgebra as na;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 lazy_static! {
     static ref EOP_MANAGER: Mutex<EOPManager> = Mutex::new(EOPManager::new());
+    static ref INIT_STATUS: OnceLock<bool> = OnceLock::new(); // Tracks if `initialize()` was called
 }
 
 #[derive(Clone)]
@@ -27,8 +28,15 @@ impl TryFrom<Epoch> for EOPData {
     /// This will fetch the EOP data from the cache file if available otherwise it will fail
     fn try_from(epoch: Epoch) -> Result<Self, Self::Error> {
         let mut manager = EOP_MANAGER.lock().unwrap();
-        manager.initialize()?; // Ensure cached data is available
-        manager.get_eop_data(epoch, false) // Fetch EOP data
+
+        // Ensure `initialize()` is only called once
+        if INIT_STATUS.get().is_none() {
+            manager.initialize()?;
+            INIT_STATUS.set(true).unwrap();
+        }
+
+        // Fetch EOP data
+        manager.get_eop_data(epoch, false)
     }
 }
 

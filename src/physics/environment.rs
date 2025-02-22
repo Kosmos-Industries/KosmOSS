@@ -19,6 +19,7 @@ impl Environment {
         let scale_height = 7200.0; // meters
         let density = 1.225 * (-altitude / scale_height).exp();
 
+
         // Simplified dipole magnetic field model
         let r = position.magnitude();
         let m = 7.94e22; // Earth's magnetic dipole moment

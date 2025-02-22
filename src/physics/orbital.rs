@@ -222,3 +222,79 @@ impl OrbitalMechanics {
         (r_eci, v_eci)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+    use nalgebra as na;
+    use test_case::test_case;
+
+    #[test_case(
+        na::Vector3::new(0.0, 0.0, 0.0),
+        na::Vector3::new(0.0, 0.0, 0.0),
+        na::Vector6::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0) => ignore; // TODO: NaNs in result
+        "zero position and velocity"
+    )]
+    fn cartesian_to_keplerian(r: na::Vector3<f64>, v: na::Vector3<f64>, result: na::Vector6<f64>) {
+        let elements = super::OrbitalMechanics::cartesian_to_keplerian(&r, &v);
+        assert_abs_diff_eq!(elements, result, epsilon = 1e-2);
+    }
+
+    fn compute_orbital_period(input: f64, expected: f64) {
+        let result = super::OrbitalMechanics::compute_orbital_period(input);
+        assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
+    }
+
+    fn compute_circular_velocity(r: f64, expected: f64) {
+        let result = super::OrbitalMechanics::compute_circular_velocity(r);
+        assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
+    }
+
+    fn compute_apsides(r: na::Vector3<f64>, v: na::Vector3<f64>, expected: (f64, f64)) {
+        let result = super::OrbitalMechanics::compute_apsides(&r, &v);
+        assert_abs_diff_eq!(result.0, expected.0, epsilon = 1e-2);
+        assert_abs_diff_eq!(result.1, expected.1, epsilon = 1e-2);
+    }
+
+    fn is_near_apsis(
+        r: na::Vector3<f64>,
+        v: na::Vector3<f64>,
+        tolerance: f64,
+        expected: (bool, bool),
+    ) {
+        let result = super::OrbitalMechanics::is_near_apsis(&r, &v, tolerance);
+        assert_eq!(result, expected);
+    }
+
+    fn true_to_eccentric_anomaly(nu: f64, e: f64, expected: f64) {
+        let result = super::OrbitalMechanics::true_to_eccentric_anomaly(nu, e);
+        assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
+    }
+
+    fn eccentric_to_mean_anomaly(E: f64, e: f64, expected: f64) {
+        let result = super::OrbitalMechanics::eccentric_to_mean_anomaly(E, e);
+        assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
+    }
+
+    fn mean_to_eccentric_anomaly(
+        M: f64,
+        e: f64,
+        tolerance: f64,
+        max_iterations: i32,
+        expected: f64,
+    ) {
+        let result =
+            super::OrbitalMechanics::mean_to_eccentric_anomaly(M, e, tolerance, max_iterations);
+        assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
+    }
+
+    fn keplerian_to_cartesian(
+        elements: na::Vector6<f64>,
+        result: (na::Vector3<f64>, na::Vector3<f64>),
+    ) {
+        let (r, v) = super::OrbitalMechanics::keplerian_to_cartesian(&elements);
+        assert_abs_diff_eq!(r, result.0, epsilon = 1e-2);
+        assert_abs_diff_eq!(v, result.1, epsilon = 1e-2);
+    }
+}

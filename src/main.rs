@@ -1,27 +1,32 @@
+mod config;
+mod constants;
+mod coordinates;
+mod fsm;
+mod gnc;
+mod integrators;
+mod models;
+mod numerics;
+mod physics;
+use crate::fsm::state_machine::SpacecraftFSM;
+use crate::numerics::quaternion::Quaternion;
 use config::spacecraft::SimpleSat;
+use constants::*;
+use coordinates::coordinate_transformation::{gcrs_to_itrs, itrs_to_geodetic, EOPData};
 use csv::Writer;
+use gnc::control::attitude_controller::GeometricAttitudeController;
+use gnc::guidance::hohmann::{ApsisTargeting, ApsisType};
 use hifitime::{Duration, Epoch};
-use kosmoss::config;
-use kosmoss::constants::*;
-use kosmoss::coordinates::coordinate_transformation::{gcrs_to_itrs, itrs_to_geodetic, EOPData};
-use kosmoss::fsm::state_machine::SpacecraftFSM;
-use kosmoss::gnc::control::attitude_controller::GeometricAttitudeController;
-use kosmoss::gnc::guidance::hohmann::{ApsisTargeting, ApsisType};
-use kosmoss::integrators::rk4::RK4;
-use kosmoss::models::State;
-use kosmoss::numerics::quaternion::Quaternion;
-use kosmoss::physics::dynamics::SpacecraftDynamics;
-use kosmoss::physics::energy::{calculate_angular_momentum, calculate_energy};
-use kosmoss::physics::orbital::OrbitalMechanics;
+use integrators::rk4::RK4;
+use models::State;
 use nalgebra as na;
+use physics::dynamics::SpacecraftDynamics;
+use physics::energy::{calculate_angular_momentum, calculate_energy};
+use physics::orbital::OrbitalMechanics;
+use std::error::Error;
 use std::fs::{self, File};
 use std::path::Path;
 
-// Integration test for an entire spacecraft simulation
-// TODO: This test should be broken into smaller unit and integration tests
-// to test individual components of the simulation
-#[test]
-fn integration_test() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     static SPACECRAFT: SimpleSat = SimpleSat;
     let perigee_alt = 50_000.0; // meters
     let apogee_alt = 400_000.0; // meters

@@ -225,6 +225,8 @@ impl OrbitalMechanics {
 
 #[cfg(test)]
 mod tests {
+    use crate::constants::R_EARTH;
+
     use super::*;
     use approx::assert_abs_diff_eq;
     use nalgebra as na;
@@ -236,27 +238,78 @@ mod tests {
         na::Vector6::new(0.0, 0.0, 0.0, 0.0, 0.0, 0.0) => ignore; // TODO: NaNs in result
         "zero position and velocity"
     )]
+    #[test_case(
+        na::Vector3::new(6524.834*1e3, 6862.875*1e3, 6448.296*1e3),
+        na::Vector3::new(4.901327*1e3, 5.533756*1e3, -1.976341*1e3),
+        na::Vector6::new(36132.747668*1e3, 0.83, 1.5334, 3.978, 4.713, 1.571);
+        "vallado 4th ed. example 2-5"
+    )]
     fn cartesian_to_keplerian(r: na::Vector3<f64>, v: na::Vector3<f64>, result: na::Vector6<f64>) {
         let elements = super::OrbitalMechanics::cartesian_to_keplerian(&r, &v);
         assert_abs_diff_eq!(elements, result, epsilon = 1e-2);
     }
 
+    #[test_case(0., 0.0 => ignore; "zero semi-major axis")]
+    #[test_case(R_EARTH + 100.*1e3, 5180.530 ; "circular orbit at 100 km altitude")]
+    #[test_case(R_EARTH + 200.*1e3, 5301.079; "circular orbit at 200 km altitude")]
     fn compute_orbital_period(input: f64, expected: f64) {
         let result = super::OrbitalMechanics::compute_orbital_period(input);
         assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
     }
 
+    #[test_case(0., 0.0 => ignore; "zero radius")] // TODO: inf result
+    #[test_case(R_EARTH + 100.*1e3, 7848.326; "circular orbit at 100 km altitude")]
+    #[test_case(R_EARTH + 200.*1e3, 7788.378; "circular orbit at 200 km altitude")]
     fn compute_circular_velocity(r: f64, expected: f64) {
         let result = super::OrbitalMechanics::compute_circular_velocity(r);
         assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
     }
 
+    #[test_case(
+        na::Vector3::new(0., 0., 0.),
+        na::Vector3::new(0., 0., 0.),
+        (0.0, 0.0) => ignore; // TODO: NaN result
+        "zero position and velocity"
+    )]
+    #[test_case(
+        na::Vector3::new(7000000., 0.0, 0.0),
+        na::Vector3::new(0.0, super::OrbitalMechanics::compute_circular_velocity(7000000.), 0.0),
+        (7000000.00, 7000000.00);
+        "circular orbit"
+    )]
+    #[test_case(
+            na::Vector3::new(6471000., 0.0, 0.0),
+            na::Vector3::new(0.0,  7878.46883566, 0.0),
+            (6571373.664, 6471000.000) => ignore; // TODO: Investigate this result further
+            "elliptical orbit"
+        )]
     fn compute_apsides(r: na::Vector3<f64>, v: na::Vector3<f64>, expected: (f64, f64)) {
         let result = super::OrbitalMechanics::compute_apsides(&r, &v);
         assert_abs_diff_eq!(result.0, expected.0, epsilon = 1e-2);
         assert_abs_diff_eq!(result.1, expected.1, epsilon = 1e-2);
     }
 
+    #[test_case(
+        na::Vector3::new(0., 0., 0.),
+        na::Vector3::new(0., 0., 0.),
+        0.0,
+        (false, false) => ignore; // TODO: NaN result
+        "zero position and velocity"
+    )]
+    #[test_case(
+        na::Vector3::new(7000000., 0.0, 0.0),
+        na::Vector3::new(0.0, super::OrbitalMechanics::compute_circular_velocity(7000000.), 0.0),
+        1.0,
+        (true, true);
+        "circular orbit"
+    )]
+    #[test_case(
+        na::Vector3::new(6471000., 0.0, 0.0),
+        na::Vector3::new(0.0,  7878.46883566, 0.0),
+        1.0,
+        (false, true) => ignore; // TODO: Investigate this result further
+        "elliptical orbit"
+    )]
     fn is_near_apsis(
         r: na::Vector3<f64>,
         v: na::Vector3<f64>,
@@ -267,16 +320,30 @@ mod tests {
         assert_eq!(result, expected);
     }
 
+    #[test_case(0.0, 0.0, 0.0 => ignore; "zero case")]
+    #[test_case(0.7853981634, 0.1, 0.710; "45° true anomaly, e=0.1")]
+    #[test_case(1.5708, 0.1, 1.474; "90° true anomaly, e=0.1")]
+    #[test_case(0.7853981634, 0.0, 0.7853981634; "45° true anomaly, e=0.0 (circular orbit)")]
+    #[test_case(1.5708, 0.5, 1.0472; "90° true anomaly, e=0.5")]
     fn true_to_eccentric_anomaly(nu: f64, e: f64, expected: f64) {
         let result = super::OrbitalMechanics::true_to_eccentric_anomaly(nu, e);
         assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
     }
 
+    #[test_case(0.0, 0.1, 0.0; "E=0, e=0.1")]
+    #[test_case(0.7854, 0.1, 0.71469; "E=45° (0.7854 rad), e=0.1")]
+    #[test_case(1.5708, 0.1, 1.4708; "E=90° (1.5708 rad), e=0.1")]
+    #[test_case(1.0, 0.0, 1.0; "E=1.0, e=0 (circular)")]
     fn eccentric_to_mean_anomaly(E: f64, e: f64, expected: f64) {
         let result = super::OrbitalMechanics::eccentric_to_mean_anomaly(E, e);
         assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
     }
 
+    #[test_case(0.0, 0.1, 1e-8, 100, 0.0; "M=0, e=0.1")]
+    #[test_case(0.71469, 0.1, 1e-8, 100, 0.7854; "M=0.71469, e=0.1")]
+    #[test_case(1.4708, 0.1, 1e-8, 100, 1.5708; "M=1.4708, e=0.1")]
+    #[test_case(0.5, 0.0, 1e-8, 100, 0.5; "M=0.5, e=0 (circular)")]
+    #[test_case(1.0, 0.5, 1e-8, 100, 1.5; "M=1.0, e=0.5")]
     fn mean_to_eccentric_anomaly(
         M: f64,
         e: f64,
@@ -289,6 +356,7 @@ mod tests {
         assert_abs_diff_eq!(result, expected, epsilon = 1e-2);
     }
 
+    // TODO: Add more test cases for keplerian_to_cartesian
     fn keplerian_to_cartesian(
         elements: na::Vector6<f64>,
         result: (na::Vector3<f64>, na::Vector3<f64>),

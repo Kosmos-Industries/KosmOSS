@@ -1,11 +1,13 @@
 mod config;
 mod constants;
 mod coordinates;
+mod fsm;
 mod gnc;
 mod integrators;
 mod models;
 mod numerics;
 mod physics;
+use crate::fsm::state_machine::SpacecraftFSM;
 use crate::numerics::quaternion::Quaternion;
 use config::spacecraft::SimpleSat;
 use constants::*;
@@ -36,8 +38,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         a,                     // semi-major axis
         e,                     // eccentricity
         89.0_f64.to_radians(), // inclination (ISS-like)
-        PI * 0.7,              // RAAN
-        0.0,                   // argument of periapsis
+        PI * 1.0,              // RAAN
+        PI * 0.075,            // argument of periapsis
         PI,                    // true anomaly (starting at perigee)
     );
 
@@ -45,7 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     //let orbital_period = OrbitalMechanics::compute_orbital_period(elements[0]);
 
     // Set simulation start and end times using proper time scales
-    let start_time = Epoch::from_gregorian_utc(2024, 3, 15, 0, 0, 0, 0);
+    let start_time = Epoch::from_gregorian_utc(2024, 3, 1, 23, 10, 0, 0);
     let simulation_duration = Duration::from_seconds(3200.0);
     let _end_time = start_time + simulation_duration;
 
@@ -56,7 +58,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         initial_position,
         initial_velocity,
         Quaternion::new(1.0, 0.0, 0.0, 0.0),
-        na::Vector3::new(0.01, 0.0, 0.0),
+        na::Vector3::new(0.05, 0.02, 0.01), // Higher initial angular velocity
         start_time,
     );
 
@@ -105,6 +107,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         "Thrust Y (N)",
         "Thrust Z (N)",
         "Drag Force (N)",
+        "Current State",
+        "Time Since State Change (s)",
     ])?;
 
     // Initialize controllers
@@ -122,6 +126,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         0.0, // Start after one orbit
     );
 
+    // Create FSM (Finite State Machine)
+    let mut fsm = SpacecraftFSM::new();
+
+    // Schedule a maneuver at t=1000s
+    let maneuver_time = 1000.0;
+    let mut maneuver_scheduled = false;
+
     for i in 0..steps {
         let current_time = i as f64 * dt;
         let current_epoch = start_time + Duration::from_seconds(current_time);
@@ -130,42 +141,66 @@ fn main() -> Result<(), Box<dyn Error>> {
         state.mission_elapsed_time = current_time;
         state.epoch = current_epoch;
 
-        // Compute control inputs
-        let thrust = hohmann_guidance.get_desired_force(
-            &SPACECRAFT,
-            &state.position,
-            &state.velocity,
-            current_time,
-        );
+        // Evaluate state transitions
+        fsm.evaluate_transition(&state);
 
-        let control_torque = attitude_controller.compute_control_torque(
-            &state.position,
-            &state.velocity,
-            &state.quaternion,
-            &state.angular_velocity,
-        );
+        // Check if it's time to start the maneuver
+        if !maneuver_scheduled && current_time >= maneuver_time {
+            if fsm.command_maneuver(current_time) {
+                println!("Maneuver commanded at t={:.2}s", current_time);
+                maneuver_scheduled = true;
+            }
+        }
+
+        // Compute control inputs based on current state
+        let (thrust, control_torque) = if fsm.should_apply_control() {
+            let control_torque = attitude_controller.compute_control_torque(
+                &state.position,
+                &state.velocity,
+                &state.quaternion,
+                &state.angular_velocity,
+            );
+
+            let thrust = if fsm.should_apply_thrust() {
+                hohmann_guidance.get_desired_force(
+                    &SPACECRAFT,
+                    &state.position,
+                    &state.velocity,
+                    current_time,
+                )
+            } else {
+                na::Vector3::zeros()
+            };
+
+            (thrust, control_torque)
+        } else {
+            (na::Vector3::zeros(), na::Vector3::zeros())
+        };
 
         // Update dynamics with control inputs
         let dynamics = SpacecraftDynamics::<SimpleSat>::new(Some(thrust), Some(control_torque));
         let integrator = RK4::new(dynamics);
 
-        // Calculate Earth rotation
-        let gmst = (EARTH_ANGULAR_VELOCITY * current_time) % (2.0 * PI);
-
         // Add EOPData
         let eop = coordinates::coordinate_transformation::EOPData::from_epoch(current_epoch)
-            .unwrap_or_else(|_| coordinates::coordinate_transformation::EOPData {
-                x_pole: 0.161556, // Default values in arcseconds
-                y_pole: 0.247219,
-                ut1_utc: -0.0890529, // Default UT1-UTC offset in seconds
-                lod: 0.0017,         // Length of day offset in seconds
-                ddpsi: -0.052,       // Nutation corrections in arcseconds
-                ddeps: -0.003,
+            .unwrap_or_else(|e| {
+                eprintln!("Warning: Failed to get EOP data: {}. Using defaults.", e);
+                coordinates::coordinate_transformation::EOPData {
+                    x_pole: 0.161556,
+                    y_pole: 0.247219,
+                    ut1_utc: -0.0890529,
+                    lod: 0.0017,
+                    ddpsi: -0.052,
+                    ddeps: -0.003,
+                }
             });
 
         // Convert to geographic coordinates
-        let itrs_pos =
-            crate::coordinates::coordinate_transformation::eci_to_itrs(&state.position, gmst, &eop);
+        let itrs_pos = crate::coordinates::coordinate_transformation::gcrs_to_itrs(
+            &state.position,
+            &current_epoch,
+            &eop,
+        );
         let (longitude, latitude, altitude) =
             crate::coordinates::coordinate_transformation::itrs_to_geodetic(&itrs_pos);
         
@@ -211,6 +246,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 &thrust[1].to_string(),
                 &thrust[2].to_string(),
                 &f_drag.to_string(),
+                &fsm.get_current_state().to_string(),
+                &(current_time - fsm.get_last_state_change()).to_string(),
             ])?;
         }
         state = integrator.integrate(&state, dt);

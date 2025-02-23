@@ -9,3 +9,9 @@ rand = "0.8.5"       # For random number generation if needed
 csv = "1.3"
 approx = "0.5"  # For float comparisons in tests
 hifitime = "3.9.0"  # Latest stable version
+reqwest = { version = "0.11", features = ["blocking"] }
+chrono = "0.4"
+dirs = "5.0"
+lazy_static = "1.4"
+serde = { version = "1.0", features = ["derive"] }
+openssl-sys = "0.9.106"

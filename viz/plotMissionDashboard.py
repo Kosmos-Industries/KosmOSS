@@ -453,7 +453,7 @@ def create_dashboard(fig):
         )
         
         ax2=ax.twiny()
-        drag_scatter = ax2.plot(
+        drag_plot = ax2.plot(
             df["Drag Force (N)"],
             df["Altitude (km)"],
             # c=df["Time (s)"],
@@ -469,12 +469,16 @@ def create_dashboard(fig):
         )
 
         ax.set_xlabel("Velocity Magnitude [km/s]")
-        ax.twiny().set_xlabel("Drag Force [N]")
         ax.set_ylabel("Altitude [km]")
+        ax2.set_xlabel("Drag Force [N]")
         ax.set_title("Altitude vs Velocity (bot) and Drag ")
         ax.grid(True)
-        # ax.legend(loc="upper right")
-        ax2.legend(loc="upper right")
+
+        lines, labels = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines + lines2, labels + labels2, loc=0)
+        # ax2.legend(loc="upper right")
+
         # Clear old buttons and create new ones
         buttons.clear()
         for i, name in enumerate(["Orbit", "Attitude", "Controls", "Aero"]):

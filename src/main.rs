@@ -203,8 +203,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         );
         let (longitude, latitude, altitude) =
             crate::coordinates::coordinate_transformation::itrs_to_geodetic(&itrs_pos);
-        
-        let f_drag: f64 = physics::drag::drag_force(&SPACECRAFT, &state.position, &state.velocity).magnitude();
+
+        let f_drag: f64 =
+            physics::drag::drag_force(&SPACECRAFT, &state.position, &state.velocity).magnitude();
         // Write data to CSV if:
         // 1. It's a regular sampling interval (every 600 steps)
         // 2. OR there's a non-zero thrust being applied

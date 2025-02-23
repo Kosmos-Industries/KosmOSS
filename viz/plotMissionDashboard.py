@@ -116,6 +116,7 @@ expected_columns = [
     "Thrust X (N)",
     "Thrust Y (N)",
     "Thrust Z (N)",
+    "Drag Force (N)",
 ]
 missing_cols = set(expected_columns) - set(df.columns)
 if missing_cols:
@@ -442,16 +443,26 @@ def create_dashboard(fig):
         )
 
         # Create scatter plot with time-based coloring
-        scatter = ax.scatter(
+        velo_scatter = ax.scatter(
             velocity_magnitude,
             df["Altitude (km)"],
             c=df["Time (s)"],
             cmap="plasma",
             alpha=0.6,
+            label="Velocity",
         )
-
+        
+        ax2=ax.twiny()
+        drag_plot = ax2.plot(
+            df["Drag Force (N)"],
+            df["Altitude (km)"],
+            # c=df["Time (s)"],
+            # cmap="plasma",
+            # alpha=0.6,
+            label="Drag Force",
+        )
         # Add colorbar
-        cbar = plt.colorbar(scatter)
+        cbar = plt.colorbar(velo_scatter)
         cbar.set_label("Mission Elapsed Time [hours]")
         cbar.ax.yaxis.set_major_formatter(
             plt.FuncFormatter(lambda x, p: f"{x / 3600:.1f}")
@@ -459,8 +470,14 @@ def create_dashboard(fig):
 
         ax.set_xlabel("Velocity Magnitude [km/s]")
         ax.set_ylabel("Altitude [km]")
-        ax.set_title("Altitude vs Velocity")
+        ax2.set_xlabel("Drag Force [N]")
+        ax.set_title("Altitude vs Velocity (bot) and Drag ")
         ax.grid(True)
+
+        lines, labels = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax2.legend(lines + lines2, labels + labels2, loc=0)
+        # ax2.legend(loc="upper right")
 
         # Clear old buttons and create new ones
         buttons.clear()

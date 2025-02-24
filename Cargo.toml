@@ -15,5 +15,6 @@ hifitime = "3.9.0"  # Latest stable version
 chrono = "0.4"
 dirs = "5.0"
 lazy_static = "1.4"
-reqwest = { version = "0.11", features = ["blocking"] }
 serde = { version = "1.0", features = ["derive"] }
+test-case = "3.3.1"
+reqwest = { version = "0.11", features = ["blocking"] }

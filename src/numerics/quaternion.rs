@@ -1,10 +1,26 @@
 use nalgebra as na;
 
+#[cfg(test)]
+use approx::AbsDiffEq;
+
 /// Quaternion utilities for spacecraft attitude dynamics
 /// Following scalar-first convention: q = [q0; q1; q2; q3] = [w; x; y; z]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Quaternion {
     pub data: na::Vector4<f64>,
+}
+
+#[cfg(test)]
+impl AbsDiffEq for Quaternion {
+    type Epsilon = f64;
+
+    fn default_epsilon() -> Self::Epsilon {
+        f64::default_epsilon()
+    }
+
+    fn abs_diff_eq(&self, other: &Self, epsilon: Self::Epsilon) -> bool {
+        self.data.abs_diff_eq(&other.data, epsilon)
+    }
 }
 
 impl Quaternion {
@@ -80,4 +96,63 @@ pub fn compute_quaternion_derivative(q: &Quaternion, w: &na::Vector3<f64>) -> Qu
         0.5 * (q.data[0] * wy + q.data[3] * wx - q.data[1] * wz),
         0.5 * (q.data[0] * wz + q.data[1] * wy - q.data[2] * wx),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+    use test_case::test_case;
+
+    /// Test quaternion to rotation matrix conversion
+    #[test_case(Quaternion::new(1.0, 0.0, 0.0, 0.0), na::Matrix3::identity(); "identity quaternion")]
+    #[test_case(Quaternion::new(0.0, 1.0, 0.0, 0.0), na::Matrix3::new(1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0); "x-axis rotation")]
+    #[test_case(Quaternion::new(0.0, 0.0, 1.0, 0.0), na::Matrix3::new(-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0); "y-axis rotation")]
+    #[test_case(Quaternion::new(0.0, 0.0, 0.0, 1.0), na::Matrix3::new(-1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 1.0); "z-axis rotation")]
+    #[test_case(
+        Quaternion::new(0.92388, 0.2706, 0.2706, 0.0),
+        na::Matrix3::new(
+            0.85356,  0.14645,  0.50000,
+            0.14645,  0.85356, -0.50000,
+           -0.50000,  0.50000,  0.70716
+        );
+        "45-degree rotation about XY-plane"
+    )]
+    fn quaternion_to_rotation_matrix(q: Quaternion, expected: na::Matrix3<f64>) {
+        assert_abs_diff_eq!(q.to_rotation_matrix(), expected, epsilon = 1e-2);
+    }
+
+    /// Test quaternion multiplication
+    #[test_case(Quaternion::new(1.0, 0.0, 0.0, 0.0), Quaternion::new(1.0, 0.0, 0.0, 0.0), Quaternion::new(1.0, 0.0, 0.0, 0.0); "identity quaternion")]
+    #[test_case(Quaternion::new(1.0, 0.0, 0.0, 0.0), Quaternion::new(0.0, 1.0, 0.0, 0.0), Quaternion::new(0.0, 1.0, 0.0, 0.0); "multiply by identity quaternion")]
+    #[test_case(Quaternion::new(0.0, 1.0, 0.0, 0.0), Quaternion::new(0.0, 1.0, 0.0, 0.0), Quaternion::new(-1.0, 0.0, 0.0, 0.0); "multiply by itself")]
+    #[test_case(Quaternion::new(0.0, 1.0, 0.0, 0.0), Quaternion::new(0.0, 0.0, 1.0, 0.0), Quaternion::new(0.0, 0.0, 0.0, 1.0); "multiply x and y axes")]
+    #[test_case(
+        Quaternion::new(0.7071, 0.7071, 0.0, 0.0),
+        Quaternion::new(0.7071, 0.0, 0.7071, 0.0),
+        Quaternion::new(0.5, 0.5, 0.5, 0.5);
+        "90-degree rotations about x and y axes"
+    )]
+    fn quaternion_multiplication(q1: Quaternion, q2: Quaternion, expected: Quaternion) {
+        assert_abs_diff_eq!(q1.multiply(&q2), expected, epsilon = 1e-2);
+    }
+
+    /// Test quaternion derivative computation
+    #[test_case(Quaternion::new(1.0, 0.0, 0.0, 0.0), na::Vector3::zeros(), Quaternion::new(0.0, 0.0, 0.0, 0.0); "zero angular velocity")]
+    #[test_case(Quaternion::new(1.0, 0.0, 0.0, 0.0), na::Vector3::new(1.0, 0.0, 0.0), Quaternion::new(0.0, 0.5, 0.0, 0.0); "x-axis rotation")]
+    #[test_case(Quaternion::new(1.0, 0.0, 0.0, 0.0), na::Vector3::new(0.0, 1.0, 0.0), Quaternion::new(0.0, 0.0, 0.5, 0.0); "y-axis rotation")]
+    #[test_case(Quaternion::new(1.0, 0.0, 0.0, 0.0), na::Vector3::new(0.0, 0.0, 1.0), Quaternion::new(0.0, 0.0, 0.0, 0.5); "z-axis rotation")]
+    #[test_case(
+        Quaternion::new(0.7071, 0.0, 0.0, 0.7071),
+        na::Vector3::new(0.0, 0.0, 1.0),
+        Quaternion::new(-0.35355, 0.0, 0.0, 0.35355);
+        "90-degree rotation about z with 1 rad/s"
+    )]
+    fn quaternion_derivative(q: Quaternion, w: na::Vector3<f64>, expected: Quaternion) {
+        assert_abs_diff_eq!(
+            compute_quaternion_derivative(&q, &w),
+            expected,
+            epsilon = 1e-2
+        );
+    }
 }

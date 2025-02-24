@@ -65,14 +65,6 @@ impl EOPData {
             ddeps: eop1.ddeps + (eop2.ddeps - eop1.ddeps) * fraction,
         }
     }
-
-    /// Refresh the EOP data cache
-    /// This will fetch the latest data from the Celestrak website and store it in the cache
-    /// file
-    pub fn refresh_data() -> Result<(), EOPErrors> {
-        let mut manager = EOP_MANAGER.lock().unwrap();
-        manager.refresh_data()
-    }
 }
 
 /// Convert ITRS Cartesian to Geodetic coordinates (WGS84)

@@ -11,6 +11,7 @@ use crate::fsm::state_machine::SpacecraftFSM;
 use crate::numerics::quaternion::Quaternion;
 use config::spacecraft::SimpleSat;
 use constants::*;
+use coordinates::coordinate_transformation::{gcrs_to_itrs, itrs_to_geodetic, EOPData};
 use csv::Writer;
 use gnc::control::attitude_controller::GeometricAttitudeController;
 use gnc::guidance::hohmann::{ApsisTargeting, ApsisType};
@@ -181,27 +182,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         let integrator = RK4::new(dynamics);
 
         // Add EOPData
-        let eop = coordinates::coordinate_transformation::EOPData::from_epoch(current_epoch)
-            .unwrap_or_else(|e| {
-                eprintln!("Warning: Failed to get EOP data: {}. Using defaults.", e);
-                coordinates::coordinate_transformation::EOPData {
-                    x_pole: 0.161556,
-                    y_pole: 0.247219,
-                    ut1_utc: -0.0890529,
-                    lod: 0.0017,
-                    ddpsi: -0.052,
-                    ddeps: -0.003,
-                }
-            });
+        let eop = EOPData::try_from(current_epoch)?;
 
         // Convert to geographic coordinates
-        let itrs_pos = crate::coordinates::coordinate_transformation::gcrs_to_itrs(
-            &state.position,
-            &current_epoch,
-            &eop,
-        );
-        let (longitude, latitude, altitude) =
-            crate::coordinates::coordinate_transformation::itrs_to_geodetic(&itrs_pos);
+        let itrs_pos = gcrs_to_itrs(&state.position, &current_epoch, &eop);
+        let (longitude, latitude, altitude) = itrs_to_geodetic(&itrs_pos);
 
         // Write data to CSV if:
         // 1. It's a regular sampling interval (every 600 steps)

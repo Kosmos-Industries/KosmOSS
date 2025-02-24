@@ -1,10 +1,15 @@
+use super::eop_errors::EOPErrors;
 use crate::constants::*;
 use crate::coordinates::eop_manager::EOPManager;
 use hifitime::Epoch;
 use lazy_static::lazy_static;
 use nalgebra as na;
-use std::error::Error;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
+
+lazy_static! {
+    static ref EOP_MANAGER: Mutex<EOPManager> = Mutex::new(EOPManager::new());
+    static ref INIT_STATUS: OnceLock<bool> = OnceLock::new(); // Tracks if `initialize()` was called
+}
 
 #[derive(Clone)]
 pub struct EOPData {
@@ -14,6 +19,52 @@ pub struct EOPData {
     pub lod: f64,     // Length of day offset (seconds)
     pub ddpsi: f64,   // Nutation correction to longitude (arcsec)
     pub ddeps: f64,   // Nutation correction to obliquity (arcsec)
+}
+
+impl Default for EOPData {
+    fn default() -> Self {
+        EOPData {
+            x_pole: 0.161556,
+            y_pole: 0.247219,
+            ut1_utc: -0.0890529,
+            lod: 0.0017,
+            ddpsi: -0.052,
+            ddeps: -0.003,
+        }
+    }
+}
+
+impl TryFrom<Epoch> for EOPData {
+    type Error = EOPErrors;
+
+    /// Try to get EOP data for a given epoch
+    /// This will fetch the EOP data from the cache file if available otherwise it will fail
+    fn try_from(epoch: Epoch) -> Result<Self, Self::Error> {
+        let mut manager = EOP_MANAGER.lock().unwrap();
+
+        // Ensure `initialize()` is only called once
+        if INIT_STATUS.get().is_none() {
+            manager.initialize()?;
+            INIT_STATUS.set(true).unwrap();
+        }
+
+        // Fetch EOP data
+        manager.get_eop_data(epoch, false)
+    }
+}
+
+impl EOPData {
+    /// Interpolate EOP data between two epochs
+    pub fn interpolate(eop1: &EOPData, eop2: &EOPData, fraction: f64) -> EOPData {
+        EOPData {
+            x_pole: eop1.x_pole + (eop2.x_pole - eop1.x_pole) * fraction,
+            y_pole: eop1.y_pole + (eop2.y_pole - eop1.y_pole) * fraction,
+            ut1_utc: eop1.ut1_utc + (eop2.ut1_utc - eop1.ut1_utc) * fraction,
+            lod: eop1.lod + (eop2.lod - eop1.lod) * fraction,
+            ddpsi: eop1.ddpsi + (eop2.ddpsi - eop1.ddpsi) * fraction,
+            ddeps: eop1.ddeps + (eop2.ddeps - eop1.ddeps) * fraction,
+        }
+    }
 }
 
 /// Convert ITRS Cartesian to Geodetic coordinates (WGS84)
@@ -65,29 +116,6 @@ pub fn itrs_to_geodetic(pos: &na::Vector3<f64>) -> (f64, f64, f64) {
     let altitude = (p / latitude.cos() - n).max(0.0); // Ensure non-negative
 
     (longitude.to_degrees(), latitude.to_degrees(), altitude)
-}
-
-impl EOPData {
-    /// Interpolate EOP data between two epochs
-    pub fn interpolate(eop1: &EOPData, eop2: &EOPData, fraction: f64) -> EOPData {
-        EOPData {
-            x_pole: eop1.x_pole + (eop2.x_pole - eop1.x_pole) * fraction,
-            y_pole: eop1.y_pole + (eop2.y_pole - eop1.y_pole) * fraction,
-            ut1_utc: eop1.ut1_utc + (eop2.ut1_utc - eop1.ut1_utc) * fraction,
-            lod: eop1.lod + (eop2.lod - eop1.lod) * fraction,
-            ddpsi: eop1.ddpsi + (eop2.ddpsi - eop1.ddpsi) * fraction,
-            ddeps: eop1.ddeps + (eop2.ddeps - eop1.ddeps) * fraction,
-        }
-    }
-
-    pub fn from_epoch(epoch: Epoch) -> Result<Self, Box<dyn Error>> {
-        lazy_static! {
-            static ref EOP_MANAGER: Mutex<EOPManager> = Mutex::new(EOPManager::new());
-        }
-
-        let mut manager = EOP_MANAGER.lock().unwrap();
-        manager.get_eop_data(epoch)
-    }
 }
 
 /// Convert GCRS to ITRS using IAU 2000/2006 CIO-based transformation

@@ -16,6 +16,7 @@ use gnc::control::attitude_controller::GeometricAttitudeController;
 use gnc::guidance::hohmann::{ApsisTargeting, ApsisType};
 use hifitime::{Duration, Epoch};
 use integrators::rk4::RK4;
+use integrators::rk8::RK8;
 use models::State;
 use nalgebra as na;
 use physics::dynamics::SpacecraftDynamics;
@@ -75,7 +76,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     fs::create_dir_all(output_dir)?;
 
     // Create CSV writer
-    let file = File::create(output_dir.join("simulation_data.csv"))?;
+    let file = File::create(output_dir.join("rk8_simulation_data.csv"))?;
     let mut writer = Writer::from_writer(file);
 
     // Modify CSV header to include UTC time
@@ -179,7 +180,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Update dynamics with control inputs
         let dynamics = SpacecraftDynamics::<SimpleSat>::new(Some(thrust), Some(control_torque));
-        let integrator = RK4::new(dynamics);
+        let integrator = RK8::new(dynamics);
 
         // Add EOPData
         let eop = coordinates::coordinate_transformation::EOPData::from_epoch(current_epoch)

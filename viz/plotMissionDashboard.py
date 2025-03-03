@@ -78,7 +78,7 @@ os.makedirs(data_dir, exist_ok=True)
 os.makedirs(docs_dir, exist_ok=True)
 
 # Check if the data file exists
-data_file = os.path.join(data_dir, "simulation_data.csv")
+data_file = os.path.join(data_dir, "rk8_simulation_data.csv")
 if not os.path.exists(data_file):
     raise FileNotFoundError(
         f"Data file not found: {data_file}\n"
